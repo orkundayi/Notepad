@@ -29,9 +29,9 @@ class MainApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PersonProvider()),
       ],
       child: MaterialApp(
-        title: 'Task Manager',
+        title: 'Task Manager - Professional Web Dashboard',
         theme: AppTheme.lightTheme.copyWith(
-          textTheme: GoogleFonts.robotoTextTheme(Theme.of(context).textTheme),
+          textTheme: GoogleFonts.interTextTheme(Theme.of(context).textTheme),
         ),
         debugShowCheckedModeBanner: false,
         home: const AuthWrapper(),

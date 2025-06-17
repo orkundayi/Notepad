@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/task_provider.dart';
@@ -8,10 +7,8 @@ import '../models/task.dart';
 import '../models/person.dart';
 import '../utils/theme.dart';
 import '../utils/platform_utils.dart';
-import '../widgets/task_card.dart';
 import '../widgets/add_task_dialog.dart';
-import '../widgets/add_person_dialog.dart';
-import '../widgets/web_kanban_layout.dart';
+import '../widgets/responsive_web_kanban.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -65,55 +62,53 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       body: Row(
         children: [
-          // Side Panel
-          Consumer<TaskProvider>(
-            builder: (context, taskProvider, child) {
-              final tasks = _getFilteredTasks(taskProvider);
+          // Responsive Side Panel
+          if (PlatformUtils.shouldShowSidebar(context))
+            Consumer<TaskProvider>(
+              builder: (context, taskProvider, child) {
+                final tasks = _getFilteredTasks(taskProvider);
 
-              return WebSidePanel(
-                tasks: tasks,
-                onAddTask: () => _showAddTaskDialog(context),
-                onManagePeople: () => Navigator.pushNamed(context, '/people'),
-                onShowFilters: () => _showPersonFilterDialog(),
-              );
-            },
-          ),
+                return ResponsiveWebSidePanel(
+                  tasks: tasks,
+                  onAddTask: () => _showAddTaskDialog(context),
+                  onManagePeople: () => Navigator.pushNamed(context, '/people'),
+                  onShowFilters: () => _showPersonFilterDialog(),
+                );
+              },
+            ),
 
           // Main Content
           Expanded(
             child: Container(
-              color: Colors.grey[50],
+              color: AppColors.background,
               child: Column(
                 children: [
-                  _buildWebHeader(),
+                  _buildResponsiveWebHeader(),
                   Expanded(
-                    child: Padding(
-                      padding: PlatformUtils.getPagePadding(context),
-                      child: Consumer<TaskProvider>(
-                        builder: (context, taskProvider, child) {
-                          if (taskProvider.isLoading) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-
-                          final tasks = _getFilteredTasks(taskProvider);
-
-                          return WebKanbanLayout(
-                            filteredTasks: tasks,
-                            isFiltered: _isPersonFilterActive || _isSearching,
-                            onRefresh: () => taskProvider.loadTasks(),
-                            onEditTask:
-                                (task) => _showEditTaskDialog(context, task),
-                            onDeleteTask:
-                                (task) => _showDeleteConfirmation(
-                                  context,
-                                  task,
-                                  taskProvider,
-                                ),
+                    child: Consumer<TaskProvider>(
+                      builder: (context, taskProvider, child) {
+                        if (taskProvider.isLoading) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
                           );
-                        },
-                      ),
+                        }
+
+                        final tasks = _getFilteredTasks(taskProvider);
+
+                        return ResponsiveWebKanbanLayout(
+                          filteredTasks: tasks,
+                          isFiltered: _isPersonFilterActive || _isSearching,
+                          onRefresh: () => taskProvider.loadTasks(),
+                          onEditTask:
+                              (task) => _showEditTaskDialog(context, task),
+                          onDeleteTask:
+                              (task) => _showDeleteConfirmation(
+                                context,
+                                task,
+                                taskProvider,
+                              ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -125,311 +120,279 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildWebHeader() {
+  Widget _buildResponsiveWebHeader() {
     return Container(
-      height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      padding: EdgeInsets.symmetric(
+        horizontal: PlatformUtils.isMobileSize(context) ? 16 : 32,
+        vertical: PlatformUtils.isMobileSize(context) ? 12 : 16,
       ),
-      child: Row(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
+      ),
+      child: Column(
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
+          Row(
             children: [
-              const Text(
-                'Task Manager',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+              // Logo and Title Section
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Task Manager',
+                      style: AppTheme.getResponsiveTextStyle(
+                        context,
+                        baseFontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (!PlatformUtils.isMobileSize(context))
+                      Text(
+                        'Profesyonel Web Dashboard',
+                        style: AppTheme.getResponsiveTextStyle(
+                          context,
+                          baseFontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              Text(
-                'Web Dashboard',
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-              ),
+
+              // Search and Actions
+              if (!PlatformUtils.isMobileSize(context)) ...[
+                const SizedBox(width: 24),
+                _buildSearchBar(),
+                const SizedBox(width: 16),
+                _buildHeaderActions(),
+              ],
             ],
           ),
 
-          const Spacer(),
-
-          Container(
-            width: 300,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Task ara...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon:
-                    _isSearching
-                        ? IconButton(
-                          icon: const Icon(Icons.close, size: 20),
-                          onPressed: () {
-                            setState(() {
-                              _isSearching = false;
-                              _searchController.clear();
-                              _filteredTasks.clear();
-                            });
-                          },
-                        )
-                        : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _isSearching = value.isNotEmpty;
-                });
-                _filterTasks(value);
-              },
-            ),
-          ),
-
-          const SizedBox(width: 16),
-
-          if (_isPersonFilterActive)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.filter_list, size: 16, color: AppColors.warning),
-                  const SizedBox(width: 4),
-                  Text(
-                    _selectedPersonFilter?.name ?? 'Atanmamış',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.warning,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          const SizedBox(width: 16),
-
-          PopupMenuButton<String>(
-            onSelected: _handleMenuSelection,
-            child: CircleAvatar(
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.person, color: Colors.white),
-            ),
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    value: 'people',
-                    child: Row(
-                      children: [
-                        Icon(Icons.people),
-                        SizedBox(width: 8),
-                        Text('Kişileri Yönet'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout),
-                        SizedBox(width: 8),
-                        Text('Çıkış Yap'),
-                      ],
-                    ),
-                  ),
-                ],
-          ),
+          // Mobile search bar
+          if (PlatformUtils.isMobileSize(context)) ...[
+            const SizedBox(height: 12),
+            _buildSearchBar(),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildMobileLayout() {
-    return Scaffold(
-      appBar: AppBar(
-        title:
-            _isSearching
-                ? TextField(
-                  controller: _searchController,
-                  autofocus: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'Task ara...',
-                    hintStyle: TextStyle(color: Colors.white70),
-                    border: InputBorder.none,
-                  ),
-                  onChanged: _filterTasks,
-                )
-                : const Text('Task Manager'),
-        actions: [
-          IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search),
-            onPressed: () {
-              setState(() {
-                if (_isSearching) {
-                  _isSearching = false;
-                  _searchController.clear();
-                  _filteredTasks.clear();
-                } else {
-                  _isSearching = true;
-                }
-              });
-            },
+  Widget _buildSearchBar() {
+    return Container(
+      width: PlatformUtils.isMobileSize(context) ? double.infinity : 300,
+      height: 40,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Görev ara...',
+          hintStyle: const TextStyle(color: AppColors.textHint),
+          prefixIcon: const Icon(
+            Icons.search,
+            size: 20,
+            color: AppColors.textSecondary,
           ),
-          Consumer<PersonProvider>(
-            builder: (context, personProvider, child) {
-              return IconButton(
-                icon: Icon(
-                  _isPersonFilterActive ? Icons.person : Icons.person_outline,
-                  color:
-                      _isPersonFilterActive ? AppColors.warning : Colors.white,
+          suffixIcon:
+              _isSearching
+                  ? IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isSearching = false;
+                        _searchController.clear();
+                        _filteredTasks.clear();
+                      });
+                    },
+                  )
+                  : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+        ),
+        onChanged: (value) {
+          setState(() {
+            _isSearching = value.isNotEmpty;
+          });
+          _filterTasks(value);
+        },
+      ),
+    );
+  }
+
+  Widget _buildHeaderActions() {
+    return Row(
+      children: [
+        // Quick Add Task Button
+        _buildQuickActionButton(
+          icon: Icons.add,
+          label: 'Yeni Görev',
+          onTap: () => _showAddTaskDialog(context),
+        ),
+
+        const SizedBox(width: 8),
+
+        // Filter Button
+        _buildQuickActionButton(
+          icon: Icons.filter_list,
+          label: 'Filtreler',
+          onTap: () => _showPersonFilterDialog(),
+          isActive: _isPersonFilterActive,
+        ),
+
+        const SizedBox(width: 8),
+
+        // Profile Menu
+        PopupMenuButton<String>(
+          icon: const CircleAvatar(
+            radius: 16,
+            backgroundColor: AppColors.primary,
+            child: Icon(Icons.person, size: 16, color: Colors.white),
+          ),
+          onSelected: (value) {
+            switch (value) {
+              case 'profile':
+                // Handle profile
+                break;
+              case 'settings':
+                // Handle settings
+                break;
+              case 'logout':
+                _handleLogout();
+                break;
+            }
+          },
+          itemBuilder:
+              (BuildContext context) => [
+                const PopupMenuItem<String>(
+                  value: 'profile',
+                  child: ListTile(
+                    leading: Icon(Icons.person),
+                    title: Text('Profil'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ),
-                onPressed: () => _showPersonFilterDialog(),
-                tooltip: 'Kişiye Göre Filtrele',
-              );
-            },
-          ),
-          if (!kIsWeb)
-            Consumer<TaskProvider>(
-              builder: (context, taskProvider, child) {
-                return IconButton(
-                  icon: Icon(
-                    taskProvider.isOfflineMode
-                        ? Icons.offline_bolt
-                        : Icons.cloud,
-                    color:
-                        taskProvider.isOfflineMode
-                            ? AppColors.warning
-                            : Colors.white,
+                const PopupMenuItem<String>(
+                  value: 'settings',
+                  child: ListTile(
+                    leading: Icon(Icons.settings),
+                    title: Text('Ayarlar'),
+                    contentPadding: EdgeInsets.zero,
                   ),
-                  onPressed: () {
-                    _showModeToggleDialog(context, taskProvider);
-                  },
-                );
-              },
-            ),
-          PopupMenuButton<String>(
-            onSelected: _handleMenuSelection,
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    value: 'people',
-                    child: Row(
-                      children: [
-                        Icon(Icons.people),
-                        SizedBox(width: 8),
-                        Text('Kişileri Yönet'),
-                      ],
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  value: 'logout',
+                  child: ListTile(
+                    leading: Icon(Icons.logout, color: AppColors.error),
+                    title: Text(
+                      'Çıkış Yap',
+                      style: TextStyle(color: AppColors.error),
                     ),
+                    contentPadding: EdgeInsets.zero,
                   ),
-                  const PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout),
-                        SizedBox(width: 8),
-                        Text('Çıkış Yap'),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
+              ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isActive = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color:
+              isActive
+                  ? AppColors.primary.withOpacity(0.1)
+                  : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive ? AppColors.primary : AppColors.border,
           ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: [
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.list, size: 16),
-                  const SizedBox(width: 4),
-                  Consumer<TaskProvider>(
-                    builder: (context, taskProvider, child) {
-                      return Text(
-                        'Todo (${_getTaskCountForStatus(TaskStatus.todo, taskProvider)})',
-                      );
-                    },
-                  ),
-                ],
-              ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isActive ? AppColors.primary : AppColors.textSecondary,
             ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.play_arrow, size: 16),
-                  const SizedBox(width: 4),
-                  Consumer<TaskProvider>(
-                    builder: (context, taskProvider, child) {
-                      return Text(
-                        'Devam (${_getTaskCountForStatus(TaskStatus.inProgress, taskProvider)})',
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.check_circle, size: 16),
-                  const SizedBox(width: 4),
-                  Consumer<TaskProvider>(
-                    builder: (context, taskProvider, child) {
-                      return Text(
-                        'Bitti (${_getTaskCountForStatus(TaskStatus.done, taskProvider)})',
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.block, size: 16),
-                  const SizedBox(width: 4),
-                  Consumer<TaskProvider>(
-                    builder: (context, taskProvider, child) {
-                      return Text(
-                        'Bloke (${_getTaskCountForStatus(TaskStatus.blocked, taskProvider)})',
-                      );
-                    },
-                  ),
-                ],
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: isActive ? AppColors.primary : AppColors.textSecondary,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Mobile Layout Methods
+  Widget _buildMobileLayout() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Task Manager'),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textPrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => _showMobileSearch(),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'people':
+                  Navigator.pushNamed(context, '/people');
+                  break;
+                case 'logout':
+                  _handleLogout();
+                  break;
+              }
+            },
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(
+                    value: 'people',
+                    child: Text('Kişileri Yönet'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'logout',
+                    child: Text('Çıkış Yap'),
+                  ),
+                ],
+          ),
+        ],
       ),
       body: Consumer<TaskProvider>(
         builder: (context, taskProvider, child) {
@@ -437,296 +400,58 @@ class _HomeScreenState extends State<HomeScreen>
             return const Center(child: CircularProgressIndicator());
           }
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildTaskList(TaskStatus.todo, taskProvider),
-              _buildTaskList(TaskStatus.inProgress, taskProvider),
-              _buildTaskList(TaskStatus.done, taskProvider),
-              _buildTaskList(TaskStatus.blocked, taskProvider),
-            ],
+          final tasks = _getFilteredTasks(taskProvider);
+
+          return ResponsiveWebKanbanLayout(
+            filteredTasks: tasks,
+            isFiltered: _isPersonFilterActive || _isSearching,
+            onRefresh: () => taskProvider.loadTasks(),
+            onEditTask: (task) => _showEditTaskDialog(context, task),
+            onDeleteTask:
+                (task) => _showDeleteConfirmation(context, task, taskProvider),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddTaskDialog(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Yeni Task'),
+        child: const Icon(Icons.add),
       ),
     );
   }
 
+  // Helper methods
   List<Task> _getFilteredTasks(TaskProvider taskProvider) {
-    if (_isSearching && _isPersonFilterActive) {
-      return _filteredTasks;
-    } else if (_isSearching) {
-      return _filteredTasks;
-    } else if (_isPersonFilterActive) {
-      _updateFilteredTasks();
-      return _filteredTasks;
-    } else {
-      return taskProvider.tasks;
-    }
-  }
+    List<Task> tasks = taskProvider.tasks;
 
-  int _getTaskCountForStatus(TaskStatus status, TaskProvider taskProvider) {
-    final tasks = _getFilteredTasks(taskProvider);
-    return tasks.where((t) => t.status == status).length;
-  }
-
-  void _updateFilteredTasks() {
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    final allTasks = taskProvider.tasks;
-
-    if (!_isPersonFilterActive) {
-      _filteredTasks.clear();
-      return;
-    }
-
-    if (_selectedPersonFilter == null) {
-      _filteredTasks =
-          allTasks.where((task) => task.assignedToId == null).toList();
-    } else {
-      _filteredTasks =
-          allTasks
+    if (_isPersonFilterActive && _selectedPersonFilter != null) {
+      tasks =
+          tasks
               .where((task) => task.assignedToId == _selectedPersonFilter!.id)
               .toList();
     }
+
+    if (_isSearching) {
+      return _filteredTasks;
+    }
+
+    return tasks;
   }
 
   void _filterTasks(String query) {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    List<Task> searchResults = taskProvider.searchTasks(query);
+    final allTasks = taskProvider.tasks;
 
-    setState(() {
-      if (_isPersonFilterActive) {
-        if (_selectedPersonFilter == null) {
-          _filteredTasks =
-              searchResults.where((task) => task.assignedToId == null).toList();
-        } else {
-          _filteredTasks =
-              searchResults
-                  .where(
-                    (task) => task.assignedToId == _selectedPersonFilter!.id,
-                  )
-                  .toList();
-        }
-      } else {
-        _filteredTasks = searchResults;
-      }
-    });
-  }
-
-  Widget _buildTaskList(TaskStatus status, TaskProvider taskProvider) {
-    final tasks = _getFilteredTasks(taskProvider);
-    final statusTasks = tasks.where((task) => task.status == status).toList();
-
-    if (statusTasks.isEmpty) {
-      String emptyMessage;
-      if (_isSearching && _isPersonFilterActive) {
-        emptyMessage = 'Arama ve filtre sonucu bulunamadı';
-      } else if (_isSearching) {
-        emptyMessage = 'Arama sonucu bulunamadı';
-      } else if (_isPersonFilterActive) {
-        emptyMessage =
-            _selectedPersonFilter == null
-                ? 'Atanmamış ${status.displayName.toLowerCase()} task yok'
-                : '${_selectedPersonFilter!.name} için ${status.displayName.toLowerCase()} task yok';
-      } else {
-        emptyMessage = 'Henüz ${status.displayName.toLowerCase()} task yok';
-      }
-
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(_getStatusIcon(status), size: 64, color: AppColors.textHint),
-            const SizedBox(height: 16),
-            Text(
-              emptyMessage,
-              style: const TextStyle(
-                fontSize: 16,
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (_isPersonFilterActive || _isSearching) ...[
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () {
-                  if (_isPersonFilterActive) _clearPersonFilter();
-                  if (_isSearching) {
-                    setState(() {
-                      _isSearching = false;
-                      _searchController.clear();
-                      _filteredTasks.clear();
-                    });
-                  }
-                },
-                child: const Text('Filtreleri Temizle'),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async {
-        await taskProvider.loadTasks();
-      },
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: statusTasks.length,
-        itemBuilder: (context, index) {
-          return TaskCard(
-            task: statusTasks[index],
-            onStatusChanged: (newStatus) {
-              taskProvider.updateTaskStatus(statusTasks[index].id, newStatus);
-            },
-            onEdit: () => _showEditTaskDialog(context, statusTasks[index]),
-            onDelete:
-                () => _showDeleteConfirmation(
-                  context,
-                  statusTasks[index],
-                  taskProvider,
-                ),
-          );
-        },
-      ),
-    );
-  }
-
-  IconData _getStatusIcon(TaskStatus status) {
-    switch (status) {
-      case TaskStatus.todo:
-        return Icons.radio_button_unchecked;
-      case TaskStatus.inProgress:
-        return Icons.play_circle_outline;
-      case TaskStatus.done:
-        return Icons.check_circle;
-      case TaskStatus.blocked:
-        return Icons.block;
-    }
-  }
-
-  void _showPersonFilterDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => Consumer<PersonProvider>(
-            builder: (context, personProvider, child) {
-              return AlertDialog(
-                title: const Row(
-                  children: [
-                    Icon(Icons.person, color: AppColors.primary),
-                    SizedBox(width: 8),
-                    Text('Kişiye Göre Filtrele'),
-                  ],
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.list),
-                      title: const Text('Tüm Tasklar'),
-                      subtitle: const Text('Filtreyi kaldır'),
-                      onTap: () {
-                        _clearPersonFilter();
-                        Navigator.pop(context);
-                      },
-                      selected: !_isPersonFilterActive,
-                    ),
-                    const Divider(),
-                    ListTile(
-                      leading: const Icon(Icons.person_off),
-                      title: const Text('Atanmamış Tasklar'),
-                      subtitle: const Text('Kimseye atanmamış tasklar'),
-                      onTap: () {
-                        _filterByUnassigned();
-                        Navigator.pop(context);
-                      },
-                      selected:
-                          _isPersonFilterActive &&
-                          _selectedPersonFilter == null,
-                    ),
-                    const Divider(),
-                    ...personProvider.people.map((person) {
-                      return ListTile(
-                        leading: const Icon(Icons.person),
-                        title: Text(person.name),
-                        subtitle: Text(person.email),
-                        onTap: () {
-                          _filterByPerson(person);
-                          Navigator.pop(context);
-                        },
-                        selected:
-                            _isPersonFilterActive &&
-                            _selectedPersonFilter?.id == person.id,
-                      );
-                    }),
-                    if (personProvider.people.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text(
-                          'Henüz kişi eklenmemiş',
-                          style: TextStyle(color: AppColors.textSecondary),
-                        ),
-                      ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('İptal'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/people');
-                    },
-                    child: const Text('Kişileri Yönet'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _showAddPersonDialog();
-                    },
-                    child: const Text('Yeni Kişi Ekle'),
-                  ),
-                ],
-              );
-            },
-          ),
-    );
-  }
-
-  void _showAddPersonDialog() {
-    showDialog(context: context, builder: (context) => const AddPersonDialog());
-  }
-
-  void _clearPersonFilter() {
-    setState(() {
-      _isPersonFilterActive = false;
-      _selectedPersonFilter = null;
+    if (query.isEmpty) {
       _filteredTasks.clear();
-    });
-  }
+      return;
+    }
 
-  void _filterByUnassigned() {
-    setState(() {
-      _isPersonFilterActive = true;
-      _selectedPersonFilter = null;
-      _updateFilteredTasks();
-    });
-  }
-
-  void _filterByPerson(Person person) {
-    setState(() {
-      _isPersonFilterActive = true;
-      _selectedPersonFilter = person;
-      _updateFilteredTasks();
-    });
+    _filteredTasks =
+        allTasks.where((task) {
+          return task.title.toLowerCase().contains(query.toLowerCase()) ||
+              task.description.toLowerCase().contains(query.toLowerCase()) ||
+              task.taskNumber.toLowerCase().contains(query.toLowerCase());
+        }).toList();
   }
 
   void _showAddTaskDialog(BuildContext context) {
@@ -749,84 +474,10 @@ class _HomeScreenState extends State<HomeScreen>
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Task\'ı Sil'),
+            title: const Text('Görevi Sil'),
             content: Text(
-              '"${task.title}" task\'ını silmek istediğinizden emin misiniz?',
+              '${task.title} görevini silmek istediğinizden emin misiniz?',
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('İptal'),
-              ),
-              TextButton(
-                onPressed: () {
-                  taskProvider.deleteTask(task.id);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Task başarıyla silindi'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                },
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                child: const Text('Sil'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showModeToggleDialog(BuildContext context, TaskProvider taskProvider) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(
-              taskProvider.isOfflineMode
-                  ? 'Online Moda Geç'
-                  : 'Offline Moda Geç',
-            ),
-            content: Text(
-              taskProvider.isOfflineMode
-                  ? 'Online moda geçmek istediğinizden emin misiniz? Yerel veriler senkronize edilecek.'
-                  : 'Offline moda geçmek istediğinizden emin misiniz? İnternet bağlantısı olmadan çalışabilirsiniz.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('İptal'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  taskProvider.toggleOfflineMode();
-                  Navigator.pop(context);
-                },
-                child: const Text('Değiştir'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _handleMenuSelection(String value) {
-    switch (value) {
-      case 'people':
-        Navigator.pushNamed(context, '/people');
-        break;
-      case 'logout':
-        _handleLogout();
-        break;
-    }
-  }
-
-  void _handleLogout() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Çıkış Yap'),
-            content: const Text('Çıkış yapmak istediğinizden emin misiniz?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -834,27 +485,133 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               TextButton(
                 onPressed: () async {
-                  final authProvider = Provider.of<AuthProvider>(
-                    context,
-                    listen: false,
-                  );
-                  final taskProvider = Provider.of<TaskProvider>(
-                    context,
-                    listen: false,
-                  );
-
-                  await authProvider.signOut();
-                  await taskProvider.clearAllData();
-
+                  Navigator.pop(context);
+                  await taskProvider.deleteTask(task.id);
                   if (context.mounted) {
-                    Navigator.pushReplacementNamed(context, '/login');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Görev silindi')),
+                    );
                   }
                 },
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                child: const Text('Çıkış Yap'),
+                child: const Text('Sil'),
               ),
             ],
           ),
+    );
+  }
+
+  void _showPersonFilterDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => Consumer<PersonProvider>(
+            builder: (context, personProvider, child) {
+              return AlertDialog(
+                title: const Text('Kişiye Göre Filtrele'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      title: const Text('Tümü'),
+                      onTap: () {
+                        setState(() {
+                          _isPersonFilterActive = false;
+                          _selectedPersonFilter = null;
+                        });
+                        Navigator.pop(context);
+                      },
+                    ),
+                    ...personProvider.people.map(
+                      (person) => ListTile(
+                        title: Text(person.name),
+                        onTap: () {
+                          setState(() {
+                            _isPersonFilterActive = true;
+                            _selectedPersonFilter = person;
+                          });
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  void _showMobileSearch() {
+    showSearch(
+      context: context,
+      delegate: TaskSearchDelegate(
+        _getFilteredTasks(Provider.of<TaskProvider>(context, listen: false)),
+      ),
+    );
+  }
+
+  void _handleLogout() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    authProvider.signOut();
+  }
+}
+
+class TaskSearchDelegate extends SearchDelegate<Task?> {
+  final List<Task> tasks;
+
+  TaskSearchDelegate(this.tasks);
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: const Icon(Icons.clear),
+        onPressed: () {
+          query = '';
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, null);
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return _buildSearchResults();
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    return _buildSearchResults();
+  }
+
+  Widget _buildSearchResults() {
+    final filteredTasks =
+        tasks.where((task) {
+          return task.title.toLowerCase().contains(query.toLowerCase()) ||
+              task.description.toLowerCase().contains(query.toLowerCase());
+        }).toList();
+
+    return ListView.builder(
+      itemCount: filteredTasks.length,
+      itemBuilder: (context, index) {
+        final task = filteredTasks[index];
+        return ListTile(
+          title: Text(task.title),
+          subtitle: Text(task.description),
+          onTap: () {
+            close(context, task);
+          },
+        );
+      },
     );
   }
 }

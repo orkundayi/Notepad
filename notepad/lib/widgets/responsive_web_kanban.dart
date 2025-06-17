@@ -101,7 +101,9 @@ class _ResponsiveWebKanbanLayoutState extends State<ResponsiveWebKanbanLayout> {
         );
       },
     );
-  }  Widget _buildMultiColumnLayout(
+  }
+
+  Widget _buildMultiColumnLayout(
     List<Task> allTasks,
     TaskProvider taskProvider,
     int columns,
@@ -110,62 +112,82 @@ class _ResponsiveWebKanbanLayoutState extends State<ResponsiveWebKanbanLayout> {
     final screenWidth = MediaQuery.of(context).size.width;
     final padding = PlatformUtils.getPagePadding(context);
     final availableWidth = screenWidth - padding.horizontal;
-    
+
     // Calculate minimum column width and spacing
     const minColumnWidth = 280.0;
     const columnSpacing = 16.0;
     final totalSpacing = columnSpacing * (allStatuses.length - 1);
     final requiredWidth = (minColumnWidth * allStatuses.length) + totalSpacing;
-    
+
     // Determine if we need horizontal scrolling
     final needsHorizontalScroll = requiredWidth > availableWidth;
-    
+
     // Calculate actual column width
-    final columnWidth = needsHorizontalScroll 
-        ? minColumnWidth 
-        : (availableWidth - totalSpacing) / allStatuses.length;
+    final columnWidth =
+        needsHorizontalScroll
+            ? minColumnWidth
+            : (availableWidth - totalSpacing) / allStatuses.length;
 
     return Padding(
       padding: padding,
-      child: needsHorizontalScroll 
-        ? ScrollConfiguration(
-            behavior: _DragScrollBehavior(),
-            child: SingleChildScrollView(
-              controller: _horizontalScrollController,
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: allStatuses.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final status = entry.value;
-                  final statusTasks =
-                      allTasks.where((task) => task.status == status).toList();
+      child:
+          needsHorizontalScroll
+              ? ScrollConfiguration(
+                behavior: _DragScrollBehavior(),
+                child: SingleChildScrollView(
+                  controller: _horizontalScrollController,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children:
+                        allStatuses.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final status = entry.value;
+                          final statusTasks =
+                              allTasks
+                                  .where((task) => task.status == status)
+                                  .toList();
 
-                  return Container(
-                    width: columnWidth,
-                    margin: EdgeInsets.only(
-                      right: index < allStatuses.length - 1 ? columnSpacing : 0,
-                    ),
-                    child: _buildKanbanColumn(status, statusTasks, taskProvider),
-                  );
-                }).toList(),
-              ),
-            ),          )
-        : Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: allStatuses.map((status) {
-              final statusTasks =
-                  allTasks.where((task) => task.status == status).toList();
-
-              return Expanded(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  child: _buildKanbanColumn(status, statusTasks, taskProvider),
+                          return Container(
+                            width: columnWidth,
+                            margin: EdgeInsets.only(
+                              right:
+                                  index < allStatuses.length - 1
+                                      ? columnSpacing
+                                      : 0,
+                            ),
+                            child: _buildKanbanColumn(
+                              status,
+                              statusTasks,
+                              taskProvider,
+                            ),
+                          );
+                        }).toList(),
+                  ),
                 ),
-              );
-            }).toList(),
-          ),
+              )
+              : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children:
+                    allStatuses.map((status) {
+                      final statusTasks =
+                          allTasks
+                              .where((task) => task.status == status)
+                              .toList();
+
+                      return Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          child: _buildKanbanColumn(
+                            status,
+                            statusTasks,
+                            taskProvider,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+              ),
     );
   }
 
@@ -610,8 +632,8 @@ class _ActionButton extends StatelessWidget {
 class _DragScrollBehavior extends MaterialScrollBehavior {
   @override
   Set<PointerDeviceKind> get dragDevices => {
-        PointerDeviceKind.touch,
-        PointerDeviceKind.mouse,
-        PointerDeviceKind.trackpad,
-      };
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.trackpad,
+  };
 }

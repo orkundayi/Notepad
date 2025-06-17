@@ -7,9 +7,11 @@ import '../providers/person_provider.dart';
 import '../models/task.dart';
 import '../models/person.dart';
 import '../utils/theme.dart';
+import '../utils/platform_utils.dart';
 import '../widgets/task_card.dart';
 import '../widgets/add_task_dialog.dart';
 import '../widgets/add_person_dialog.dart';
+import '../widgets/web_kanban_layout.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,11 +28,11 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isSearching = false;
   Person? _selectedPersonFilter;
   bool _isPersonFilterActive = false;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    // Initialize provider after the build phase
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeProvider();
     });
@@ -56,6 +58,216 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    return PlatformUtils.isWeb ? _buildWebLayout() : _buildMobileLayout();
+  }
+
+  Widget _buildWebLayout() {
+    return Scaffold(
+      body: Row(
+        children: [
+          // Side Panel
+          Consumer<TaskProvider>(
+            builder: (context, taskProvider, child) {
+              final tasks = _getFilteredTasks(taskProvider);
+
+              return WebSidePanel(
+                tasks: tasks,
+                onAddTask: () => _showAddTaskDialog(context),
+                onManagePeople: () => Navigator.pushNamed(context, '/people'),
+                onShowFilters: () => _showPersonFilterDialog(),
+              );
+            },
+          ),
+
+          // Main Content
+          Expanded(
+            child: Container(
+              color: Colors.grey[50],
+              child: Column(
+                children: [
+                  _buildWebHeader(),
+                  Expanded(
+                    child: Padding(
+                      padding: PlatformUtils.getPagePadding(context),
+                      child: Consumer<TaskProvider>(
+                        builder: (context, taskProvider, child) {
+                          if (taskProvider.isLoading) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+
+                          final tasks = _getFilteredTasks(taskProvider);
+
+                          return WebKanbanLayout(
+                            filteredTasks: tasks,
+                            isFiltered: _isPersonFilterActive || _isSearching,
+                            onRefresh: () => taskProvider.loadTasks(),
+                            onEditTask:
+                                (task) => _showEditTaskDialog(context, task),
+                            onDeleteTask:
+                                (task) => _showDeleteConfirmation(
+                                  context,
+                                  task,
+                                  taskProvider,
+                                ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebHeader() {
+    return Container(
+      height: 80,
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Task Manager',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                'Web Dashboard',
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+
+          const Spacer(),
+
+          Container(
+            width: 300,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Task ara...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon:
+                    _isSearching
+                        ? IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () {
+                            setState(() {
+                              _isSearching = false;
+                              _searchController.clear();
+                              _filteredTasks.clear();
+                            });
+                          },
+                        )
+                        : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _isSearching = value.isNotEmpty;
+                });
+                _filterTasks(value);
+              },
+            ),
+          ),
+
+          const SizedBox(width: 16),
+
+          if (_isPersonFilterActive)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.filter_list, size: 16, color: AppColors.warning),
+                  const SizedBox(width: 4),
+                  Text(
+                    _selectedPersonFilter?.name ?? 'Atanmamış',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(width: 16),
+
+          PopupMenuButton<String>(
+            onSelected: _handleMenuSelection,
+            child: CircleAvatar(
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.person, color: Colors.white),
+            ),
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(
+                    value: 'people',
+                    child: Row(
+                      children: [
+                        Icon(Icons.people),
+                        SizedBox(width: 8),
+                        Text('Kişileri Yönet'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout),
+                        SizedBox(width: 8),
+                        Text('Çıkış Yap'),
+                      ],
+                    ),
+                  ),
+                ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
     return Scaffold(
       appBar: AppBar(
         title:
@@ -87,7 +299,6 @@ class _HomeScreenState extends State<HomeScreen>
               });
             },
           ),
-          // Person filter button
           Consumer<PersonProvider>(
             builder: (context, personProvider, child) {
               return IconButton(
@@ -101,7 +312,6 @@ class _HomeScreenState extends State<HomeScreen>
               );
             },
           ),
-          // Mode toggle button - only show on mobile
           if (!kIsWeb)
             Consumer<TaskProvider>(
               builder: (context, taskProvider, child) {
@@ -125,6 +335,16 @@ class _HomeScreenState extends State<HomeScreen>
             onSelected: _handleMenuSelection,
             itemBuilder:
                 (context) => [
+                  const PopupMenuItem(
+                    value: 'people',
+                    child: Row(
+                      children: [
+                        Icon(Icons.people),
+                        SizedBox(width: 8),
+                        Text('Kişileri Yönet'),
+                      ],
+                    ),
+                  ),
                   const PopupMenuItem(
                     value: 'logout',
                     child: Row(
@@ -236,25 +456,72 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildTaskList(TaskStatus status, TaskProvider taskProvider) {
-    List<Task> tasks;
-
+  List<Task> _getFilteredTasks(TaskProvider taskProvider) {
     if (_isSearching && _isPersonFilterActive) {
-      // Both search and person filter active
-      tasks = _filteredTasks.where((task) => task.status == status).toList();
+      return _filteredTasks;
     } else if (_isSearching) {
-      // Only search active
-      tasks = _filteredTasks.where((task) => task.status == status).toList();
+      return _filteredTasks;
     } else if (_isPersonFilterActive) {
-      // Only person filter active
-      _updateFilteredTasks(); // Ensure filtered tasks are up to date
-      tasks = _filteredTasks.where((task) => task.status == status).toList();
+      _updateFilteredTasks();
+      return _filteredTasks;
     } else {
-      // No filters active
-      tasks = taskProvider.getTasksByStatus(status);
+      return taskProvider.tasks;
+    }
+  }
+
+  int _getTaskCountForStatus(TaskStatus status, TaskProvider taskProvider) {
+    final tasks = _getFilteredTasks(taskProvider);
+    return tasks.where((t) => t.status == status).length;
+  }
+
+  void _updateFilteredTasks() {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final allTasks = taskProvider.tasks;
+
+    if (!_isPersonFilterActive) {
+      _filteredTasks.clear();
+      return;
     }
 
-    if (tasks.isEmpty) {
+    if (_selectedPersonFilter == null) {
+      _filteredTasks =
+          allTasks.where((task) => task.assignedToId == null).toList();
+    } else {
+      _filteredTasks =
+          allTasks
+              .where((task) => task.assignedToId == _selectedPersonFilter!.id)
+              .toList();
+    }
+  }
+
+  void _filterTasks(String query) {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    List<Task> searchResults = taskProvider.searchTasks(query);
+
+    setState(() {
+      if (_isPersonFilterActive) {
+        if (_selectedPersonFilter == null) {
+          _filteredTasks =
+              searchResults.where((task) => task.assignedToId == null).toList();
+        } else {
+          _filteredTasks =
+              searchResults
+                  .where(
+                    (task) => task.assignedToId == _selectedPersonFilter!.id,
+                  )
+                  .toList();
+        }
+      } else {
+        _filteredTasks = searchResults;
+      }
+    });
+  }
+
+  Widget _buildTaskList(TaskStatus status, TaskProvider taskProvider) {
+    final tasks = _getFilteredTasks(taskProvider);
+    final statusTasks = tasks.where((task) => task.status == status).toList();
+
+    if (statusTasks.isEmpty) {
       String emptyMessage;
       if (_isSearching && _isPersonFilterActive) {
         emptyMessage = 'Arama ve filtre sonucu bulunamadı';
@@ -310,18 +577,18 @@ class _HomeScreenState extends State<HomeScreen>
       },
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: tasks.length,
+        itemCount: statusTasks.length,
         itemBuilder: (context, index) {
           return TaskCard(
-            task: tasks[index],
+            task: statusTasks[index],
             onStatusChanged: (newStatus) {
-              taskProvider.updateTaskStatus(tasks[index].id, newStatus);
+              taskProvider.updateTaskStatus(statusTasks[index].id, newStatus);
             },
-            onEdit: () => _showEditTaskDialog(context, tasks[index]),
+            onEdit: () => _showEditTaskDialog(context, statusTasks[index]),
             onDelete:
                 () => _showDeleteConfirmation(
                   context,
-                  tasks[index],
+                  statusTasks[index],
                   taskProvider,
                 ),
           );
@@ -333,163 +600,14 @@ class _HomeScreenState extends State<HomeScreen>
   IconData _getStatusIcon(TaskStatus status) {
     switch (status) {
       case TaskStatus.todo:
-        return Icons.list;
+        return Icons.radio_button_unchecked;
       case TaskStatus.inProgress:
-        return Icons.play_arrow;
+        return Icons.play_circle_outline;
       case TaskStatus.done:
         return Icons.check_circle;
       case TaskStatus.blocked:
         return Icons.block;
     }
-  }
-
-  void _filterTasks(String query) {
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    List<Task> searchResults = taskProvider.searchTasks(query);
-
-    setState(() {
-      if (_isPersonFilterActive) {
-        // Apply person filter to search results
-        if (_selectedPersonFilter == null) {
-          // Filter unassigned tasks from search results
-          _filteredTasks =
-              searchResults.where((task) => task.assignedToId == null).toList();
-        } else {
-          // Filter by specific person from search results
-          _filteredTasks =
-              searchResults
-                  .where(
-                    (task) => task.assignedToId == _selectedPersonFilter!.id,
-                  )
-                  .toList();
-        }
-      } else {
-        _filteredTasks = searchResults;
-      }
-    });
-  }
-
-  void _showAddTaskDialog(BuildContext context) {
-    showDialog(context: context, builder: (context) => const AddTaskDialog());
-  }
-
-  void _showEditTaskDialog(BuildContext context, Task task) {
-    showDialog(
-      context: context,
-      builder: (context) => AddTaskDialog(task: task),
-    );
-  }
-
-  void _showDeleteConfirmation(
-    BuildContext context,
-    Task task,
-    TaskProvider taskProvider,
-  ) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Task\'ı Sil'),
-            content: Text(
-              '"${task.title}" task\'ını silmek istediğinizden emin misiniz?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('İptal'),
-              ),
-              TextButton(
-                onPressed: () {
-                  taskProvider.deleteTask(task.id);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('Task silindi')));
-                },
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                child: const Text('Sil'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showModeToggleDialog(BuildContext context, TaskProvider taskProvider) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(
-              taskProvider.isOfflineMode
-                  ? 'Online Moda Geç'
-                  : 'Offline Moda Geç',
-            ),
-            content: Text(
-              taskProvider.isOfflineMode
-                  ? 'Online moda geçmek istediğinizden emin misiniz? Verileriniz Firebase ile senkronize edilecek.'
-                  : 'Offline moda geçmek istediğinizden emin misiniz? Verileriniz sadece bu cihazda saklanacak.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('İptal'),
-              ),
-              TextButton(
-                onPressed: () {
-                  taskProvider.toggleOfflineMode();
-                  Navigator.pop(context);
-                },
-                child: const Text('Değiştir'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _handleMenuSelection(String value) {
-    switch (value) {
-      case 'logout':
-        _handleLogout();
-        break;
-    }
-  }
-
-  void _handleLogout() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Çıkış Yap'),
-            content: const Text('Çıkış yapmak istediğinizden emin misiniz?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('İptal'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  final authProvider = Provider.of<AuthProvider>(
-                    context,
-                    listen: false,
-                  );
-                  final taskProvider = Provider.of<TaskProvider>(
-                    context,
-                    listen: false,
-                  );
-
-                  await authProvider.signOut();
-                  await taskProvider.clearAllData();
-
-                  if (context.mounted) {
-                    Navigator.pushReplacementNamed(context, '/login');
-                  }
-                },
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                child: const Text('Çıkış Yap'),
-              ),
-            ],
-          ),
-    );
   }
 
   void _showPersonFilterDialog() {
@@ -509,7 +627,6 @@ class _HomeScreenState extends State<HomeScreen>
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // All tasks option
                     ListTile(
                       leading: const Icon(Icons.list),
                       title: const Text('Tüm Tasklar'),
@@ -521,7 +638,6 @@ class _HomeScreenState extends State<HomeScreen>
                       selected: !_isPersonFilterActive,
                     ),
                     const Divider(),
-                    // Unassigned tasks option
                     ListTile(
                       leading: const Icon(Icons.person_off),
                       title: const Text('Atanmamış Tasklar'),
@@ -535,7 +651,6 @@ class _HomeScreenState extends State<HomeScreen>
                           _selectedPersonFilter == null,
                     ),
                     const Divider(),
-                    // People list
                     ...personProvider.people.map((person) {
                       return ListTile(
                         leading: const Icon(Icons.person),
@@ -614,38 +729,132 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  int _getTaskCountForStatus(TaskStatus status, TaskProvider taskProvider) {
-    if (_isSearching && _isPersonFilterActive) {
-      return _filteredTasks.where((t) => t.status == status).length;
-    } else if (_isSearching) {
-      return _filteredTasks.where((t) => t.status == status).length;
-    } else if (_isPersonFilterActive) {
-      _updateFilteredTasks();
-      return _filteredTasks.where((t) => t.status == status).length;
-    } else {
-      return taskProvider.getTasksByStatus(status).length;
+  void _showAddTaskDialog(BuildContext context) {
+    showDialog(context: context, builder: (context) => const AddTaskDialog());
+  }
+
+  void _showEditTaskDialog(BuildContext context, Task task) {
+    showDialog(
+      context: context,
+      builder: (context) => AddTaskDialog(task: task),
+    );
+  }
+
+  void _showDeleteConfirmation(
+    BuildContext context,
+    Task task,
+    TaskProvider taskProvider,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Task\'ı Sil'),
+            content: Text(
+              '"${task.title}" task\'ını silmek istediğinizden emin misiniz?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('İptal'),
+              ),
+              TextButton(
+                onPressed: () {
+                  taskProvider.deleteTask(task.id);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Task başarıyla silindi'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                child: const Text('Sil'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _showModeToggleDialog(BuildContext context, TaskProvider taskProvider) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              taskProvider.isOfflineMode
+                  ? 'Online Moda Geç'
+                  : 'Offline Moda Geç',
+            ),
+            content: Text(
+              taskProvider.isOfflineMode
+                  ? 'Online moda geçmek istediğinizden emin misiniz? Yerel veriler senkronize edilecek.'
+                  : 'Offline moda geçmek istediğinizden emin misiniz? İnternet bağlantısı olmadan çalışabilirsiniz.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('İptal'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  taskProvider.toggleOfflineMode();
+                  Navigator.pop(context);
+                },
+                child: const Text('Değiştir'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _handleMenuSelection(String value) {
+    switch (value) {
+      case 'people':
+        Navigator.pushNamed(context, '/people');
+        break;
+      case 'logout':
+        _handleLogout();
+        break;
     }
   }
 
-  void _updateFilteredTasks() {
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    final allTasks = taskProvider.tasks;
+  void _handleLogout() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Çıkış Yap'),
+            content: const Text('Çıkış yapmak istediğinizden emin misiniz?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('İptal'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final authProvider = Provider.of<AuthProvider>(
+                    context,
+                    listen: false,
+                  );
+                  final taskProvider = Provider.of<TaskProvider>(
+                    context,
+                    listen: false,
+                  );
 
-    if (!_isPersonFilterActive) {
-      _filteredTasks.clear();
-      return;
-    }
+                  await authProvider.signOut();
+                  await taskProvider.clearAllData();
 
-    if (_selectedPersonFilter == null) {
-      // Filter unassigned tasks
-      _filteredTasks =
-          allTasks.where((task) => task.assignedToId == null).toList();
-    } else {
-      // Filter by specific person
-      _filteredTasks =
-          allTasks
-              .where((task) => task.assignedToId == _selectedPersonFilter!.id)
-              .toList();
-    }
+                  if (context.mounted) {
+                    Navigator.pushReplacementNamed(context, '/login');
+                  }
+                },
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                child: const Text('Çıkış Yap'),
+              ),
+            ],
+          ),
+    );
   }
 }

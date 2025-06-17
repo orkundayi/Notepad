@@ -1,0 +1,24 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "flutter-notepad-27093",
+          "appId": "1:69555141013:android:7b9d7486592940141a9e9c",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "flutter-notepad-27093",
+          "configurations": {
+            "android": "1:69555141013:android:7b9d7486592940141a9e9c",
+            "web": "1:69555141013:web:7710fc38c4d5b9241a9e9c"
+          }
+        }
+      }    }
+  }
+}

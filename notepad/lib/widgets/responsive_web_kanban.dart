@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
@@ -28,6 +29,20 @@ class ResponsiveWebKanbanLayout extends StatefulWidget {
 }
 
 class _ResponsiveWebKanbanLayoutState extends State<ResponsiveWebKanbanLayout> {
+  late ScrollController _horizontalScrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _horizontalScrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _horizontalScrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<TaskProvider>(
@@ -86,32 +101,71 @@ class _ResponsiveWebKanbanLayoutState extends State<ResponsiveWebKanbanLayout> {
         );
       },
     );
-  }
-
-  Widget _buildMultiColumnLayout(
+  }  Widget _buildMultiColumnLayout(
     List<Task> allTasks,
     TaskProvider taskProvider,
     int columns,
   ) {
-    final visibleStatuses = TaskStatus.values.take(columns).toList();
+    final allStatuses = TaskStatus.values;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final padding = PlatformUtils.getPagePadding(context);
+    final availableWidth = screenWidth - padding.horizontal;
+    
+    // Calculate minimum column width and spacing
+    const minColumnWidth = 280.0;
+    const columnSpacing = 16.0;
+    final totalSpacing = columnSpacing * (allStatuses.length - 1);
+    final requiredWidth = (minColumnWidth * allStatuses.length) + totalSpacing;
+    
+    // Determine if we need horizontal scrolling
+    final needsHorizontalScroll = requiredWidth > availableWidth;
+    
+    // Calculate actual column width
+    final columnWidth = needsHorizontalScroll 
+        ? minColumnWidth 
+        : (availableWidth - totalSpacing) / allStatuses.length;
 
     return Padding(
-      padding: PlatformUtils.getPagePadding(context),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children:
-            visibleStatuses.map((status) {
+      padding: padding,
+      child: needsHorizontalScroll 
+        ? ScrollConfiguration(
+            behavior: _DragScrollBehavior(),
+            child: SingleChildScrollView(
+              controller: _horizontalScrollController,
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: allStatuses.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final status = entry.value;
+                  final statusTasks =
+                      allTasks.where((task) => task.status == status).toList();
+
+                  return Container(
+                    width: columnWidth,
+                    margin: EdgeInsets.only(
+                      right: index < allStatuses.length - 1 ? columnSpacing : 0,
+                    ),
+                    child: _buildKanbanColumn(status, statusTasks, taskProvider),
+                  );
+                }).toList(),
+              ),
+            ),          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: allStatuses.map((status) {
               final statusTasks =
                   allTasks.where((task) => task.status == status).toList();
 
               return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
                   child: _buildKanbanColumn(status, statusTasks, taskProvider),
                 ),
               );
             }).toList(),
-      ),
+          ),
     );
   }
 
@@ -550,4 +604,14 @@ class _ActionButton extends StatelessWidget {
       ),
     );
   }
+}
+
+// Enhanced drag scroll behavior that supports mouse dragging
+class _DragScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      };
 }

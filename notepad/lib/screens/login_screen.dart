@@ -226,27 +226,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           );
                         },
                       ),
-
-                      // Register Link
-                      const SizedBox(height: 24),
-                      TextButton(
-                        onPressed: () => _showRegisterDialog(context),
-                        child: RichText(
-                          text: const TextSpan(
-                            text: 'Hesabınız yok mu? ',
-                            style: TextStyle(color: AppColors.textSecondary),
-                            children: [
-                              TextSpan(
-                                text: 'Kayıt Olun',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -272,24 +251,5 @@ class _LoginScreenState extends State<LoginScreen> {
         context.go('/dashboard');
       }
     }
-  }
-
-  void _showRegisterDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Kayıt Ol'),
-            content: const Text(
-              'Yeni hesap oluşturmak için lütfen Firebase Console\'dan manuel olarak kullanıcı ekleyin.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Tamam'),
-              ),
-            ],
-          ),
-    );
   }
 }

@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import '../models/task.dart';
 import '../models/user.dart';
 import '../services/firestore_service.dart';
@@ -12,6 +14,7 @@ class TaskProvider with ChangeNotifier {
   List<Task> _tasks = [];
   bool _isLoading = false;
   String? _currentUserId;
+  StreamSubscription<List<Task>>? _tasksSubscription;
 
   List<Task> get tasks => _tasks;
   bool get isLoading => _isLoading;
@@ -43,12 +46,26 @@ class TaskProvider with ChangeNotifier {
     });
 
     try {
+      // Cancel existing subscription if any
+      await _tasksSubscription?.cancel();
+
       // Always load from Firestore for web
-      _firestoreService.getUserTasks(_currentUserId!).listen((tasks) {
-        _tasks = tasks;
-        _isLoading = false;
-        notifyListeners();
-      });
+      _tasksSubscription = _firestoreService
+          .getUserTasks(_currentUserId!)
+          .listen(
+            (tasks) {
+              _tasks = tasks;
+              _isLoading = false;
+              notifyListeners();
+            },
+            onError: (error) {
+              if (kDebugMode) {
+                print('Error loading tasks: $error');
+              }
+              _isLoading = false;
+              notifyListeners();
+            },
+          );
     } catch (e) {
       _isLoading = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -212,5 +229,21 @@ class TaskProvider with ChangeNotifier {
       'done': getTasksByStatus(TaskStatus.done).length,
       'blocked': getTasksByStatus(TaskStatus.blocked).length,
     };
+  }
+
+  // Sign out and clean up
+  Future<void> signOut() async {
+    await _tasksSubscription?.cancel();
+    _tasksSubscription = null;
+    _currentUserId = null;
+    _tasks.clear();
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _tasksSubscription?.cancel();
+    super.dispose();
   }
 }

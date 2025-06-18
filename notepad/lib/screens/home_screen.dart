@@ -285,18 +285,6 @@ class _HomeScreenState extends State<HomeScreen>
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
-                const PopupMenuDivider(),
-                const PopupMenuItem<String>(
-                  value: 'logout',
-                  child: ListTile(
-                    leading: Icon(Icons.logout, color: AppColors.error),
-                    title: Text(
-                      'Çıkış Yap',
-                      style: TextStyle(color: AppColors.error),
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
               ],
         ),
       ],

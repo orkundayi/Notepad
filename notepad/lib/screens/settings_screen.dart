@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
+import '../providers/task_provider.dart';
+import '../providers/person_provider.dart';
 import '../utils/theme.dart';
 import '../utils/platform_utils.dart';
 
@@ -280,13 +283,53 @@ class SettingsScreen extends StatelessWidget {
                 child: const Text('İptal'),
               ),
               TextButton(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(context);
-                  final authProvider = Provider.of<AuthProvider>(
-                    context,
-                    listen: false,
-                  );
-                  authProvider.signOut();
+                  try {
+                    // First clean up other providers to avoid permission errors
+                    final taskProvider = Provider.of<TaskProvider>(
+                      context,
+                      listen: false,
+                    );
+                    final personProvider = Provider.of<PersonProvider>(
+                      context,
+                      listen: false,
+                    );
+
+                    // Clean up provider subscriptions
+                    await taskProvider.signOut();
+                    await personProvider.signOut();
+
+                    if (!context.mounted) return;
+
+                    // Then sign out from auth
+                    final authProvider = Provider.of<AuthProvider>(
+                      context,
+                      listen: false,
+                    );
+                    await authProvider.signOut();
+
+                    // Force navigation to login screen
+                    if (context.mounted) {
+                      context.go('/login');
+                    }
+                  } catch (e) {
+                    if (kDebugMode) {
+                      print('Logout error: $e');
+                    }
+                    // Even if there's an error, still try to sign out
+                    if (!context.mounted) return;
+                    final authProvider = Provider.of<AuthProvider>(
+                      context,
+                      listen: false,
+                    );
+                    await authProvider.signOut();
+
+                    // Force navigation to login screen even on error
+                    if (context.mounted) {
+                      context.go('/login');
+                    }
+                  }
                 },
                 style: TextButton.styleFrom(foregroundColor: AppColors.error),
                 child: const Text('Çıkış Yap'),

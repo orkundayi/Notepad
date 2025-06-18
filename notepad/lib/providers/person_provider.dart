@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import '../models/person.dart';
 import '../models/user.dart';
 import '../services/firestore_service.dart';
@@ -12,6 +13,7 @@ class PersonProvider with ChangeNotifier {
   List<Person> _people = [];
   bool _isLoading = false;
   String? _currentUserId;
+  StreamSubscription<List<Person>>? _peopleSubscription;
 
   List<Person> get people => _people;
   bool get isLoading => _isLoading;
@@ -33,12 +35,26 @@ class PersonProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Cancel existing subscription if any
+      await _peopleSubscription?.cancel();
+
       // Always load from Firestore for web
-      _firestoreService.getUserPeople(_currentUserId!).listen((people) {
-        _people = people;
-        _isLoading = false;
-        notifyListeners();
-      });
+      _peopleSubscription = _firestoreService
+          .getUserPeople(_currentUserId!)
+          .listen(
+            (people) {
+              _people = people;
+              _isLoading = false;
+              notifyListeners();
+            },
+            onError: (error) {
+              if (kDebugMode) {
+                print('Error loading people: $error');
+              }
+              _isLoading = false;
+              notifyListeners();
+            },
+          );
     } catch (e) {
       if (kDebugMode) {
         print('Error loading people: $e');
@@ -145,5 +161,21 @@ class PersonProvider with ChangeNotifier {
       roles[role] = (roles[role] ?? 0) + 1;
     }
     return {'total': _people.length, ...roles};
+  }
+
+  // Sign out and clean up
+  Future<void> signOut() async {
+    await _peopleSubscription?.cancel();
+    _peopleSubscription = null;
+    _currentUserId = null;
+    _people.clear();
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _peopleSubscription?.cancel();
+    super.dispose();
   }
 }

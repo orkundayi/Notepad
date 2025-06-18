@@ -26,6 +26,7 @@ void main() async {
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -34,12 +35,16 @@ class MainApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TaskProvider()),
         ChangeNotifierProvider(create: (_) => PersonProvider()),
       ],
-      child: MaterialApp.router(
-        title: 'Task Manager - Professional Web Dashboard',
-        theme: AppTheme.lightTheme,
-        debugShowCheckedModeBanner: false,
-        routerConfig: AppRouter.router,
-        // Web specific performance optimizations
+      child: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          return MaterialApp.router(
+            title: 'Task Manager - Professional Web Dashboard',
+            theme: AppTheme.lightTheme,
+            debugShowCheckedModeBanner: false,
+            routerConfig: AppRouter.createRouter(authProvider),
+            // Web specific performance optimizations
+          );
+        },
       ),
     );
   }

@@ -291,8 +291,6 @@ class ResponsiveWebSidePanel extends StatelessWidget {
         children: [
           _buildQuickStats(),
           const SizedBox(height: 24),
-          _buildQuickActions(),
-          const SizedBox(height: 24),
           _buildRecentActivity(),
         ],
       ),
@@ -369,49 +367,6 @@ class ResponsiveWebSidePanel extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActions() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Hızlı İşlemler',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _ActionButton(
-              icon: Icons.add_task,
-              label: 'Yeni Görev',
-              color: AppColors.primary,
-              onTap: onAddTask,
-            ),
-            const SizedBox(height: 12),
-            _ActionButton(
-              icon: Icons.people,
-              label: 'Kişileri Yönet',
-              color: AppColors.secondary,
-              onTap: onManagePeople,
-            ),
-            const SizedBox(height: 12),
-            if (onShowFilters != null)
-              _ActionButton(
-                icon: Icons.filter_list,
-                label: 'Filtreler',
-                color: AppColors.warning,
-                onTap: onShowFilters!,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildRecentActivity() {
     final recentTasks = tasks.take(3).toList();
 
@@ -482,52 +437,6 @@ class ResponsiveWebSidePanel extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -137,6 +137,7 @@ class TaskProvider with ChangeNotifier {
   Future<bool> updateTask(Task task) async {
     try {
       final updates = {
+        'taskNumber': task.taskNumber,
         'title': task.title,
         'description': task.description,
         'status': task.status.value,

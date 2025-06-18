@@ -26,6 +26,7 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
   TaskStatus _selectedStatus = TaskStatus.todo;
   Person? _selectedAssignee;
   bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -62,206 +63,373 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return _buildWebLayout();
+  }
+
+  Widget _buildWebLayout() {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: _buildAppBar(),
-      body: _buildBody(),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      elevation: 0,
-      backgroundColor: Colors.white,
-      foregroundColor: Colors.black87,
-      title: Text(
-        widget.task != null ? 'Edit Task' : 'Create New Task',
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-      ),
-      actions: [
-        if (_isLoading)
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+      body: Row(
+        children: [
+          // Sidebar
+          Container(
+            width: 280,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(right: BorderSide(color: Colors.grey, width: 0.5)),
             ),
-          )
-        else ...[
-          TextButton(
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/dashboard');
-              }
-            },
-            child: const Text('Cancel'),
+            child: _buildSidebar(),
           ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: _saveTask,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: Text(widget.task != null ? 'Update' : 'Create'),
-          ),
-          const SizedBox(width: 16),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildBody() {
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 800),
-        margin: const EdgeInsets.all(24),
-        child: Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Form(
-              key: _formKey,
+          // Main content
+          Expanded(
+            child: Container(
+              color: Colors.grey.shade50,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(),
-                  const SizedBox(height: 32),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                flex: 1,
-                                child: _buildTextField(
-                                  controller: _taskNumberController,
-                                  label: 'Task Number',
-                                  hint: 'e.g., GMO-4567',
-                                  icon: Icons.tag_rounded,
-                                  validator: (value) {
-                                    if (value != null &&
-                                        value.trim().isNotEmpty) {
-                                      // Optional validation for format
-                                      if (!RegExp(
-                                        r'^[A-Z]+-\d+$',
-                                      ).hasMatch(value.trim())) {
-                                        return 'Format: ABC-123';
-                                      }
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 24),
-                              Expanded(
-                                flex: 2,
-                                child: _buildTextField(
-                                  controller: _titleController,
-                                  label: 'Task Title *',
-                                  hint: 'Enter a descriptive task title',
-                                  icon: Icons.title_rounded,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return 'Please enter a task title';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                          _buildTextField(
-                            controller: _descriptionController,
-                            label: 'Description',
-                            hint: 'Describe what needs to be done',
-                            icon: Icons.description_rounded,
-                            maxLines: 4,
-                          ),
-                          const SizedBox(height: 32),
-                          Row(
-                            children: [
-                              Expanded(child: _buildPriorityField()),
-                              const SizedBox(width: 24),
-                              Expanded(child: _buildStatusField()),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                          _buildAssigneeField(),
-                          const SizedBox(height: 32),
-                        ],
-                      ),
-                    ),
-                  ),
+                  _buildWebHeader(),
+                  Expanded(child: _buildWebContent()),
                 ],
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildSidebar() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        // Sidebar Header
+        Container(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/dashboard');
+                  }
+                },
+                icon: const Icon(Icons.arrow_back, color: Colors.blue),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.blue.withOpacity(0.1),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  widget.task != null ? 'Görev Düzenle' : 'Yeni Görev',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        // Sidebar Content
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Görev Yönetimi',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildSidebarAction(
+                  icon: Icons.save,
+                  title:
+                      widget.task != null ? 'Görevi Güncelle' : 'Görevi Kaydet',
+                  subtitle: 'Değişiklikleri kaydet',
+                  onTap: _saveTask,
+                  isLoading: _isLoading,
+                  isPrimary: true,
+                ),
+                const SizedBox(height: 12),
+                _buildSidebarAction(
+                  icon: Icons.preview,
+                  title: 'Önizleme',
+                  subtitle: 'Görev detaylarını gözden geçir',
+                  onTap: () {
+                    // Önizleme functionality
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildSidebarAction(
+                  icon: Icons.refresh,
+                  title: 'Sıfırla',
+                  subtitle: 'Formu temizle',
+                  onTap: _resetForm,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSidebarAction({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool isLoading = false,
+    bool isPrimary = false,
+  }) {
+    return InkWell(
+      onTap: isLoading ? null : onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isPrimary ? Colors.blue.shade200 : Colors.grey.shade300,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: isPrimary ? Colors.blue.shade50 : null,
+        ),
+        child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color:
+                    isPrimary
+                        ? Colors.blue.withOpacity(0.2)
+                        : Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                widget.task != null
-                    ? Icons.edit_rounded
-                    : Icons.add_task_rounded,
-                color: Theme.of(context).primaryColor,
-                size: 24,
-              ),
+              child:
+                  isLoading
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : Icon(
+                        icon,
+                        color: isPrimary ? Colors.blue : Colors.grey.shade600,
+                        size: 20,
+                      ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.task != null ? 'Edit Task' : 'Create New Task',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: isPrimary ? Colors.blue.shade700 : Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
-                    widget.task != null
-                        ? 'Update the details of your task'
-                        : 'Fill in the details to create a new task',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        Container(height: 1, color: Colors.grey.shade200),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildWebHeader() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey, width: 0.5)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.task != null ? 'Görev Düzenle' : 'Yeni Görev Oluştur',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.task != null
+                      ? 'Görev detaylarını güncelleyin'
+                      : 'Yeni bir görev oluşturmak için formu doldurun',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(40),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildBasicInfoSection(),
+                const SizedBox(height: 32),
+                _buildDetailsSection(),
+                const SizedBox(height: 32),
+                _buildAssignmentSection(),
+                const SizedBox(height: 60),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBasicInfoSection() {
+    return _buildSection(
+      title: 'Temel Bilgiler',
+      icon: Icons.info_outline_rounded,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: _buildTextField(
+                  controller: _taskNumberController,
+                  label: 'Görev Numarası',
+                  hint: 'örn: GMO-4567',
+                  icon: Icons.tag_rounded,
+                  validator: (value) {
+                    if (value != null && value.trim().isNotEmpty) {
+                      if (!RegExp(r'^[A-Z]+-\d+$').hasMatch(value.trim())) {
+                        return 'Format: ABC-123';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                flex: 2,
+                child: _buildTextField(
+                  controller: _titleController,
+                  label: 'Görev Başlığı *',
+                  hint: 'Açıklayıcı bir başlık girin',
+                  icon: Icons.title_rounded,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Lütfen bir görev başlığı girin';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildTextField(
+            controller: _descriptionController,
+            label: 'Açıklama',
+            hint: 'Yapılması gerekenleri açıklayın...',
+            icon: Icons.description_rounded,
+            maxLines: 4,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailsSection() {
+    return _buildSection(
+      title: 'Görev Detayları',
+      icon: Icons.settings_rounded,
+      child: Row(
+        children: [
+          Expanded(child: _buildPriorityField()),
+          const SizedBox(width: 20),
+          Expanded(child: _buildStatusField()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAssignmentSection() {
+    return _buildSection(
+      title: 'Atama',
+      icon: Icons.person_rounded,
+      child: _buildAssigneeField(),
+    );
+  }
+
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: Colors.blue, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          child,
+        ],
+      ),
     );
   }
 
@@ -279,7 +447,7 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
@@ -291,7 +459,8 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
-            prefixIcon: Icon(icon, color: Colors.grey.shade600),
+            hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+            prefixIcon: Icon(icon, color: Colors.grey.shade600, size: 20),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),
@@ -302,15 +471,24 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Theme.of(context).primaryColor,
-                width: 2,
-              ),
+              borderSide: BorderSide(color: Colors.blue, width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 2),
             ),
             filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.all(16),
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
+          style: const TextStyle(fontSize: 14),
         ),
       ],
     );
@@ -321,9 +499,9 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Priority',
+          'Öncelik',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
@@ -340,6 +518,7 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
             prefixIcon: Icon(
               Icons.priority_high_rounded,
               color: Colors.grey.shade600,
+              size: 20,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -351,15 +530,16 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Theme.of(context).primaryColor,
-                width: 2,
-              ),
+              borderSide: BorderSide(color: Colors.blue, width: 2),
             ),
             filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.all(16),
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
+          style: const TextStyle(fontSize: 14, color: Colors.black87),
           items:
               TaskPriority.values.map((TaskPriority priority) {
                 return DropdownMenuItem<TaskPriority>(
@@ -377,9 +557,9 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Status',
+          'Durum',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
@@ -393,7 +573,11 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
             }
           },
           decoration: InputDecoration(
-            prefixIcon: Icon(Icons.flag_rounded, color: Colors.grey.shade600),
+            prefixIcon: Icon(
+              Icons.flag_rounded,
+              color: Colors.grey.shade600,
+              size: 20,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),
@@ -404,15 +588,16 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Theme.of(context).primaryColor,
-                width: 2,
-              ),
+              borderSide: BorderSide(color: Colors.blue, width: 2),
             ),
             filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.all(16),
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
+          style: const TextStyle(fontSize: 14, color: Colors.black87),
           items:
               TaskStatus.values.map((TaskStatus status) {
                 return DropdownMenuItem<TaskStatus>(
@@ -430,9 +615,9 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Assign To',
+          'Atanan Kişi',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
@@ -449,6 +634,7 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
                 prefixIcon: Icon(
                   Icons.person_rounded,
                   color: Colors.grey.shade600,
+                  size: 20,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -460,19 +646,20 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).primaryColor,
-                    width: 2,
-                  ),
+                  borderSide: BorderSide(color: Colors.blue, width: 2),
                 ),
                 filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.all(16),
+                fillColor: Colors.grey.shade50,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
               items: [
                 const DropdownMenuItem<Person?>(
                   value: null,
-                  child: Text('Unassigned'),
+                  child: Text('Atanmamış'),
                 ),
                 ...personProvider.people.map((Person person) {
                   return DropdownMenuItem<Person?>(
@@ -488,6 +675,17 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
     );
   }
 
+  void _resetForm() {
+    _taskNumberController.clear();
+    _titleController.clear();
+    _descriptionController.clear();
+    setState(() {
+      _selectedPriority = TaskPriority.medium;
+      _selectedStatus = TaskStatus.todo;
+      _selectedAssignee = null;
+    });
+  }
+
   Future<void> _saveTask() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -497,6 +695,7 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
       final taskProvider = Provider.of<TaskProvider>(context, listen: false);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final userId = authProvider.user?.uid ?? '';
+
       if (widget.task != null) {
         // Update existing task
         final updatedTask = widget.task!.copyWith(
@@ -534,6 +733,7 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
         );
         await taskProvider.addTask(newTask);
       }
+
       if (mounted) {
         if (context.canPop()) {
           context.pop();
@@ -544,8 +744,8 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
           SnackBar(
             content: Text(
               widget.task != null
-                  ? 'Task updated successfully!'
-                  : 'Task created successfully!',
+                  ? 'Görev başarıyla güncellendi!'
+                  : 'Görev başarıyla oluşturuldu!',
             ),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
@@ -559,7 +759,7 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Hata: $e'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(

@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isSearching = false;
   Person? _selectedPersonFilter;
   bool _isPersonFilterActive = false;
+  bool _isFilterBarVisible = false;
 
   @override
   void initState() {
@@ -64,12 +65,14 @@ class _HomeScreenState extends State<HomeScreen>
             Consumer<TaskProvider>(
               builder: (context, taskProvider, child) {
                 final tasks = _getFilteredTasks(taskProvider);
-
                 return ResponsiveWebSidePanel(
                   tasks: tasks,
                   onAddTask: () => _showAddTaskDialog(context),
                   onManagePeople: () => context.go('/people'),
-                  onShowFilters: () => _showPersonFilterDialog(),
+                  onShowFilters: () {
+                    // Filters are now always visible in the filter bar
+                    // No action needed as filters are embedded in the UI
+                  },
                 );
               },
             ),
@@ -81,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen>
               child: Column(
                 children: [
                   _buildResponsiveWebHeader(),
+                  if (_isFilterBarVisible) _buildFilterBar(),
                   Expanded(
                     child: Consumer<TaskProvider>(
                       builder: (context, taskProvider, child) {
@@ -222,7 +226,6 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildHeaderActions() {
     return Row(
       children: [
-        // Quick Add Task Button
         _buildQuickActionButton(
           icon: Icons.add,
           label: 'Yeni Görev',
@@ -230,17 +233,31 @@ class _HomeScreenState extends State<HomeScreen>
         ),
 
         const SizedBox(width: 8),
-
-        // Filter Button
         _buildQuickActionButton(
-          icon: Icons.filter_list,
-          label: 'Filtreler',
-          onTap: () => _showPersonFilterDialog(),
-          isActive: _isPersonFilterActive,
+          icon:
+              _isPersonFilterActive ? Icons.filter_list_off : Icons.filter_list,
+          label:
+              _isPersonFilterActive
+                  ? 'Filtreleri Temizle'
+                  : _isFilterBarVisible
+                  ? 'Filtreleri Gizle'
+                  : 'Filtreleri Göster',
+          onTap: () {
+            setState(() {
+              if (_isPersonFilterActive) {
+                // Clear filters but keep filter bar visible
+                _isPersonFilterActive = false;
+                _selectedPersonFilter = null;
+              } else {
+                // Toggle filter bar visibility
+                _isFilterBarVisible = !_isFilterBarVisible;
+              }
+            });
+          },
+          isActive: _isPersonFilterActive || _isFilterBarVisible,
         ),
 
         const SizedBox(width: 8),
-
         // Profile Menu
         PopupMenuButton<String>(
           icon: const CircleAvatar(
@@ -250,11 +267,8 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           onSelected: (value) {
             switch (value) {
-              case 'profile':
-                // Handle profile
-                break;
               case 'settings':
-                // Handle settings
+                context.go('/settings');
                 break;
               case 'logout':
                 _handleLogout();
@@ -263,14 +277,6 @@ class _HomeScreenState extends State<HomeScreen>
           },
           itemBuilder:
               (BuildContext context) => [
-                const PopupMenuItem<String>(
-                  value: 'profile',
-                  child: ListTile(
-                    leading: Icon(Icons.person),
-                    title: Text('Profil'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
                 const PopupMenuItem<String>(
                   value: 'settings',
                   child: ListTile(
@@ -345,14 +351,36 @@ class _HomeScreenState extends State<HomeScreen>
   List<Task> _getFilteredTasks(TaskProvider taskProvider) {
     List<Task> tasks = taskProvider.tasks;
 
-    if (_isPersonFilterActive && _selectedPersonFilter != null) {
-      tasks =
-          tasks
-              .where((task) => task.assignedToId == _selectedPersonFilter!.id)
-              .toList();
+    if (_isPersonFilterActive) {
+      if (_selectedPersonFilter == null) {
+        // Atanmamış task'ları filtrele
+        tasks =
+            tasks
+                .where(
+                  (task) =>
+                      task.assignedToId == null || task.assignedToId!.isEmpty,
+                )
+                .toList();
+      } else {
+        // Belirli bir kişiye atanmış task'ları filtrele
+        tasks =
+            tasks
+                .where((task) => task.assignedToId == _selectedPersonFilter!.id)
+                .toList();
+      }
     }
 
     if (_isSearching) {
+      // Arama sonuçlarını mevcut filtreler ile birleştir
+      if (_isPersonFilterActive) {
+        return _filteredTasks.where((task) {
+          if (_selectedPersonFilter == null) {
+            return task.assignedToId == null || task.assignedToId!.isEmpty;
+          } else {
+            return task.assignedToId == _selectedPersonFilter!.id;
+          }
+        }).toList();
+      }
       return _filteredTasks;
     }
 
@@ -419,47 +447,6 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _showPersonFilterDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => Consumer<PersonProvider>(
-            builder: (context, personProvider, child) {
-              return AlertDialog(
-                title: const Text('Kişiye Göre Filtrele'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      title: const Text('Tümü'),
-                      onTap: () {
-                        setState(() {
-                          _isPersonFilterActive = false;
-                          _selectedPersonFilter = null;
-                        });
-                        Navigator.pop(context);
-                      },
-                    ),
-                    ...personProvider.people.map(
-                      (person) => ListTile(
-                        title: Text(person.name),
-                        onTap: () {
-                          setState(() {
-                            _isPersonFilterActive = true;
-                            _selectedPersonFilter = person;
-                          });
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-    );
-  }
-
   void _handleLogout() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     authProvider.signOut();
@@ -467,137 +454,212 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildFilterBar() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.divider.withOpacity(0.5),
+            width: 1,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.02),
             blurRadius: 4,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 1),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: Consumer<PersonProvider>(
+        builder: (context, personProvider, child) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.filter_list_rounded, size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'Filters',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              // Filter Header
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  _buildFilterChip(
+                    label: 'Tümü',
+                    isSelected: !_isPersonFilterActive,
+                    onSelected: () {
+                      setState(() {
+                        // "Tümü" seçiliyken tekrar tıklanırsa hiçbir şey yapma
+                        // Zaten varsayılan durum bu
+                        _isPersonFilterActive = false;
+                        _selectedPersonFilter = null;
+                      });
+                    },
+                    icon: Icons.view_list_rounded,
+                    color: AppColors.primary,
+                    count:
+                        Provider.of<TaskProvider>(
+                          context,
+                          listen: false,
+                        ).tasks.length,
+                  ),
+
+                  // Unassigned Tasks Filter
+                  _buildFilterChip(
+                    label: 'Atanmamış',
+                    isSelected:
+                        _isPersonFilterActive && _selectedPersonFilter == null,
+                    onSelected: () {
+                      setState(() {
+                        if (_isPersonFilterActive &&
+                            _selectedPersonFilter == null) {
+                          // Zaten atanmamış filtresi aktif, kaldır
+                          _isPersonFilterActive = false;
+                          _selectedPersonFilter = null;
+                        } else {
+                          // Atanmamış filtresini aktif et
+                          _isPersonFilterActive = true;
+                          _selectedPersonFilter = null;
+                        }
+                      });
+                    },
+                    icon: Icons.person_off_rounded,
+                    color: Colors.orange,
+                    count:
+                        Provider.of<TaskProvider>(context, listen: false).tasks
+                            .where(
+                              (task) =>
+                                  task.assignedToId == null ||
+                                  task.assignedToId!.isEmpty,
+                            )
+                            .length,
+                  ),
+
+                  // Person Filters
+                  ...personProvider.people.map((person) {
+                    final isSelected =
+                        _isPersonFilterActive &&
+                        _selectedPersonFilter?.id == person.id;
+                    final taskCount =
+                        Provider.of<TaskProvider>(context, listen: false).tasks
+                            .where((task) => task.assignedToId == person.id)
+                            .length;
+
+                    return _buildFilterChip(
+                      label: person.name,
+                      isSelected: isSelected,
+                      onSelected: () {
+                        setState(() {
+                          if (isSelected) {
+                            // Zaten seçili, kaldır (tümüne dön)
+                            _isPersonFilterActive = false;
+                            _selectedPersonFilter = null;
+                          } else {
+                            // Bu kişiyi seç
+                            _isPersonFilterActive = true;
+                            _selectedPersonFilter = person;
+                          }
+                        });
+                      },
+                      avatar:
+                          person.name.isNotEmpty
+                              ? person.name[0].toUpperCase()
+                              : '?',
+                      color: AppColors.primary,
+                      count: taskCount,
+                    );
+                  }),
+                ],
               ),
-              const Spacer(),
-              if (_isPersonFilterActive)
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _isPersonFilterActive = false;
-                      _selectedPersonFilter = null;
-                    });
-                  },
-                  icon: const Icon(Icons.clear, size: 16),
-                  label: const Text('Clear All'),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                ),
             ],
-          ),
-          const SizedBox(height: 12),
-          _buildPersonFilter(),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildPersonFilter() {
-    return Consumer<PersonProvider>(
-      builder: (context, personProvider, child) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onSelected,
+    IconData? icon,
+    String? avatar,
+    required Color color,
+    required int count,
+  }) {
+    return InkWell(
+      onTap: onSelected,
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color:
+              isSelected ? color.withOpacity(0.15) : AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected ? color : AppColors.border,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Assign to:',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
+            // Avatar or Icon
+            if (avatar != null)
+              CircleAvatar(
+                backgroundColor: isSelected ? color : AppColors.textSecondary,
+                radius: 8,
+                child: Text(
+                  avatar,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
+            else if (icon != null)
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? color : AppColors.textSecondary,
               ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilterChip(
-                  label: const Text('All'),
-                  selected: !_isPersonFilterActive,
-                  onSelected: (selected) {
-                    setState(() {
-                      _isPersonFilterActive = false;
-                      _selectedPersonFilter = null;
-                    });
-                  },
-                  backgroundColor: Colors.grey.shade100,
-                  selectedColor: Theme.of(
-                    context,
-                  ).primaryColor.withOpacity(0.2),
-                  checkmarkColor: Theme.of(context).primaryColor,
+
+            const SizedBox(width: 6),
+
+            // Label
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? color : AppColors.textSecondary,
+              ),
+            ), // Count Badge
+            if (count > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color:
+                      isSelected
+                          ? color.withOpacity(0.2)
+                          : AppColors.textHint.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                FilterChip(
-                  label: const Text('Unassigned'),
-                  selected:
-                      _isPersonFilterActive && _selectedPersonFilter == null,
-                  onSelected: (selected) {
-                    setState(() {
-                      _isPersonFilterActive = true;
-                      _selectedPersonFilter = null;
-                    });
-                  },
-                  backgroundColor: Colors.grey.shade100,
-                  selectedColor: Colors.orange.withOpacity(0.2),
-                  checkmarkColor: Colors.orange,
+                child: Text(
+                  count.toString(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? color : AppColors.textHint,
+                  ),
                 ),
-                ...personProvider.people.map((person) {
-                  final isSelected =
-                      _isPersonFilterActive &&
-                      _selectedPersonFilter?.id == person.id;
-                  return FilterChip(
-                    avatar: CircleAvatar(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      radius: 12,
-                      child: Text(
-                        person.name.isNotEmpty
-                            ? person.name[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    label: Text(person.name),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _isPersonFilterActive = selected;
-                        _selectedPersonFilter = selected ? person : null;
-                      });
-                    },
-                    backgroundColor: Colors.grey.shade100,
-                    selectedColor: Theme.of(
-                      context,
-                    ).primaryColor.withOpacity(0.2),
-                    checkmarkColor: Theme.of(context).primaryColor,
-                  );
-                }),
-              ],
-            ),
+              ),
+            ],
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }

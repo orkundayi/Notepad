@@ -6,6 +6,7 @@ import '../screens/login_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/people_list_screen.dart';
 import '../screens/task_creation_screen.dart';
+import '../screens/settings_screen.dart';
 import '../models/task.dart';
 
 class AppRouter {
@@ -137,6 +138,23 @@ class AppRouter {
             },
           );
         },
+      ),
+      GoRoute(
+        path: '/settings',
+        name: 'settings',
+        pageBuilder:
+            (context, state) => CustomTransitionPage(
+              key: state.pageKey,
+              child: const SettingsScreen(),
+              transitionsBuilder: (
+                context,
+                animation,
+                secondaryAnimation,
+                child,
+              ) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+            ),
       ),
     ],
   );

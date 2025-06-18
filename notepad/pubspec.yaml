@@ -21,9 +21,8 @@ dependencies:
   # Local Storage
   shared_preferences: ^2.2.3
   sqflite: ^2.3.3+1
-  
-  # UI
-  google_fonts: ^6.2.1
+    # Navigation
+  go_router: ^14.3.0
   
   # Utils
   intl: ^0.20.2

@@ -42,7 +42,7 @@ class _EditPersonDialogState extends State<EditPersonDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return PlatformUtils.isWeb ? _buildWebDialog() : _buildMobileDialog();
+    return _buildWebDialog();
   }
 
   Widget _buildWebDialog() {
@@ -81,17 +81,6 @@ class _EditPersonDialogState extends State<EditPersonDialog> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildMobileDialog() {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: PlatformUtils.getCardRadius(),
-      ),
-      title: _buildMobileHeader(),
-      content: SizedBox(width: double.maxFinite, child: _buildMobileForm()),
-      actions: _buildMobileActions(),
     );
   }
 
@@ -152,16 +141,6 @@ class _EditPersonDialogState extends State<EditPersonDialog> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMobileHeader() {
-    return Row(
-      children: [
-        const Icon(Icons.edit_note, color: AppColors.primary),
-        const SizedBox(width: 8),
-        const Text('Kişi Düzenle'),
-      ],
     );
   }
 
@@ -264,78 +243,6 @@ class _EditPersonDialogState extends State<EditPersonDialog> {
     );
   }
 
-  Widget _buildMobileForm() {
-    return Form(
-      key: _formKey,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Name Field
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Ad Soyad *',
-                prefixIcon: Icon(Icons.person),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Ad soyad gereklidir';
-                }
-                if (value.trim().length < 2) {
-                  return 'Ad soyad en az 2 karakter olmalıdır';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Email Field
-            TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'E-posta *',
-                prefixIcon: Icon(Icons.email),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'E-posta gereklidir';
-                }
-                if (!RegExp(
-                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                ).hasMatch(value.trim())) {
-                  return 'Geçerli bir e-posta adresi girin';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Department Field
-            TextFormField(
-              controller: _departmentController,
-              decoration: const InputDecoration(
-                labelText: 'Departman',
-                prefixIcon: Icon(Icons.business),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Role Field
-            TextFormField(
-              controller: _roleController,
-              decoration: const InputDecoration(
-                labelText: 'Pozisyon/Rol',
-                prefixIcon: Icon(Icons.work),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildWebFormField({
     required String label,
     required Widget child,
@@ -410,31 +317,6 @@ class _EditPersonDialogState extends State<EditPersonDialog> {
     );
   }
 
-  List<Widget> _buildMobileActions() {
-    return [
-      TextButton(
-        onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-        child: const Text('İptal'),
-      ),
-      TextButton(
-        onPressed: _isLoading ? null : _deletePerson,
-        style: TextButton.styleFrom(foregroundColor: Colors.red),
-        child: const Text('Sil'),
-      ),
-      ElevatedButton(
-        onPressed: _isLoading ? null : _savePerson,
-        child:
-            _isLoading
-                ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-                : const Text('Güncelle'),
-      ),
-    ];
-  }
-
   void _savePerson() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -446,8 +328,7 @@ class _EditPersonDialogState extends State<EditPersonDialog> {
         listen: false,
       );
 
-      await personProvider.updatePerson(
-        widget.person.id,
+      final updatedPerson = widget.person.copyWith(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         department:
@@ -458,7 +339,10 @@ class _EditPersonDialogState extends State<EditPersonDialog> {
             _roleController.text.trim().isEmpty
                 ? null
                 : _roleController.text.trim(),
+        updatedAt: DateTime.now(),
       );
+
+      await personProvider.updatePerson(updatedPerson);
 
       if (mounted) {
         Navigator.of(context).pop();

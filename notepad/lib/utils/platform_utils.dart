@@ -1,15 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class PlatformUtils {
-  // Platform detection
-  static bool get isWeb => kIsWeb;
-  static bool get isMobile => !kIsWeb;
-  static bool get isAndroid =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
-  static bool get isIOS =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-  // Screen size helpers with enhanced breakpoints
+  // Platform detection - Web only
+  static const bool isWeb = true;
+  static const bool isMobile = false;
+
+  // Screen size helpers for web
   static bool isLargeScreen(BuildContext context) {
     return MediaQuery.of(context).size.width > 1440;
   }
@@ -23,248 +19,186 @@ class PlatformUtils {
     return MediaQuery.of(context).size.width <= 768;
   }
 
-  static bool isMobileSize(BuildContext context) {
-    return MediaQuery.of(context).size.width < 600;
-  }
-
-  static bool isTabletSize(BuildContext context) {
-    return MediaQuery.of(context).size.width >= 600 &&
-        MediaQuery.of(context).size.width < 1024;
-  }
-
   static bool isDesktopSize(BuildContext context) {
     return MediaQuery.of(context).size.width >= 1024;
   }
 
-  // Layout helpers with responsive design
+  // Layout helpers optimized for web
   static double getContentWidth(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    if (isWeb) {
-      if (screenWidth > 1600) return 1400;
-      if (screenWidth > 1200) return screenWidth * 0.9;
-      if (screenWidth > 768) return screenWidth * 0.95;
-      return screenWidth * 0.98;
-    }
-    return screenWidth;
+    if (screenWidth > 1600) return 1400;
+    if (screenWidth > 1200) return screenWidth * 0.9;
+    if (screenWidth > 768) return screenWidth * 0.95;
+    return screenWidth * 0.98;
   }
 
   static EdgeInsets getPagePadding(BuildContext context) {
-    if (isWeb) {
-      if (isLargeScreen(context)) return const EdgeInsets.all(40);
-      if (isMediumScreen(context)) return const EdgeInsets.all(24);
-      if (isMobileSize(context)) return const EdgeInsets.all(12);
-      return const EdgeInsets.all(16);
-    }
+    if (isLargeScreen(context)) return const EdgeInsets.all(40);
+    if (isMediumScreen(context)) return const EdgeInsets.all(24);
     return const EdgeInsets.all(16);
   }
 
-  static EdgeInsets getCardPadding([BuildContext? context]) {
-    if (context != null && isWeb) {
-      if (isMobileSize(context)) return const EdgeInsets.all(12);
-      return const EdgeInsets.all(20);
-    }
-    return isWeb ? const EdgeInsets.all(20) : const EdgeInsets.all(16);
+  static EdgeInsets getCardPadding() {
+    return const EdgeInsets.all(20);
   }
 
-  static EdgeInsets getDialogPadding([BuildContext? context]) {
-    if (context != null && isWeb) {
-      if (isMobileSize(context)) return const EdgeInsets.all(16);
-      return const EdgeInsets.all(32);
-    }
-    return isWeb ? const EdgeInsets.all(32) : const EdgeInsets.all(20);
+  static EdgeInsets getDialogPadding() {
+    return const EdgeInsets.all(32);
   }
 
   static double getCardElevation() {
-    return isWeb ? 0.0 : 4.0;
+    return 0.0; // Web'de flat design
   }
 
-  static BorderRadius getCardRadius([BuildContext? context]) {
-    if (context != null && isWeb && isMobileSize(context)) {
-      return BorderRadius.circular(12.0);
-    }
-    return BorderRadius.circular(isWeb ? 16.0 : 12.0);
+  static BorderRadius getCardRadius() {
+    return BorderRadius.circular(16.0);
   }
 
   static BorderRadius getButtonRadius() {
-    return BorderRadius.circular(isWeb ? 12.0 : 8.0);
+    return BorderRadius.circular(12.0);
   }
 
-  static double getIconSize([BuildContext? context]) {
-    if (context != null && isWeb && isMobileSize(context)) return 20.0;
-    return isWeb ? 24.0 : 20.0;
+  static double getIconSize() {
+    return 24.0;
   }
 
   static double getAppBarHeight() {
-    return isWeb ? 72.0 : 56.0;
+    return 72.0;
   }
 
-  // Responsive layout configurations
-  static int getKanbanColumns(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    if (screenWidth < 600) return 1; // Mobile: single column
-    if (screenWidth < 900) return 2; // Small tablet: 2 columns
-    if (screenWidth < 1200) return 3; // Large tablet: 3 columns
-    return 4; // Desktop: all 4 columns
-  }
-
-  static bool shouldShowSidebar(BuildContext context) {
-    return isWeb && MediaQuery.of(context).size.width > 1024;
-  }
-
-  static double getSidebarWidth(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    if (screenWidth > 1600) return 320;
-    if (screenWidth > 1200) return 280;
-    return 260;
-  }
-
-  // Typography helpers with responsive scaling
-  static TextStyle getTitleStyle(BuildContext context) {
-    final base = Theme.of(context).textTheme.titleLarge!;
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    double fontSize = 20;
-    if (isWeb) {
-      if (screenWidth > 1200) {
-        fontSize = 28;
-      } else if (screenWidth > 768) {
-        fontSize = 24;
-      } else {
-        fontSize = 20;
-      }
+  // Web-specific responsive text styles
+  static TextStyle getHeadingStyle(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width > 1200) {
+      return const TextStyle(fontSize: 32, fontWeight: FontWeight.bold);
+    } else if (width > 768) {
+      return const TextStyle(fontSize: 28, fontWeight: FontWeight.bold);
+    } else {
+      return const TextStyle(fontSize: 24, fontWeight: FontWeight.bold);
     }
-
-    return base.copyWith(fontSize: fontSize, fontWeight: FontWeight.w700);
   }
 
   static TextStyle getSubtitleStyle(BuildContext context) {
-    final base = Theme.of(context).textTheme.titleMedium!;
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    double fontSize = 16;
-    if (isWeb) {
-      if (screenWidth > 1200) {
-        fontSize = 20;
-      } else if (screenWidth > 768) {
-        fontSize = 18;
-      } else {
-        fontSize = 16;
-      }
+    final width = MediaQuery.of(context).size.width;
+    if (width > 1200) {
+      return const TextStyle(fontSize: 18, fontWeight: FontWeight.w500);
+    } else if (width > 768) {
+      return const TextStyle(fontSize: 16, fontWeight: FontWeight.w500);
+    } else {
+      return const TextStyle(fontSize: 14, fontWeight: FontWeight.w500);
     }
-
-    return base.copyWith(fontSize: fontSize, fontWeight: FontWeight.w600);
   }
 
   static TextStyle getBodyStyle(BuildContext context) {
-    final base = Theme.of(context).textTheme.bodyLarge!;
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    double fontSize = 14;
-    if (isWeb) {
-      if (screenWidth > 1200) {
-        fontSize = 16;
-      } else if (screenWidth > 768) {
-        fontSize = 15;
-      } else {
-        fontSize = 14;
-      }
+    final width = MediaQuery.of(context).size.width;
+    if (width > 1200) {
+      return const TextStyle(fontSize: 16);
+    } else if (width > 768) {
+      return const TextStyle(fontSize: 14);
+    } else {
+      return const TextStyle(fontSize: 13);
     }
-
-    return base.copyWith(fontSize: fontSize);
   }
 
-  static TextStyle getCaptionStyle(BuildContext context) {
-    final base = Theme.of(context).textTheme.bodySmall!;
+  // Web-specific layout constants
+  static double getSidebarWidth(BuildContext context) {
+    if (isLargeScreen(context)) return 280;
+    if (isMediumScreen(context)) return 240;
+    return 200;
+  }
+
+  static double getMaxDialogWidth(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
-    double fontSize = 12;
-    if (isWeb) {
-      if (screenWidth > 1200) {
-        fontSize = 14;
-      } else if (screenWidth > 768) {
-        fontSize = 13;
-      } else {
-        fontSize = 12;
-      }
-    }
-
-    return base.copyWith(fontSize: fontSize);
+    if (screenWidth > 1200) return 900;
+    if (screenWidth > 768) return screenWidth * 0.8;
+    return screenWidth * 0.95;
   }
 
-  // Task card responsive sizing
-  static double getTaskCardWidth(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final columns = getKanbanColumns(context);
-    final padding = getPagePadding(context).horizontal;
-    final sidebarWidth =
-        shouldShowSidebar(context) ? getSidebarWidth(context) : 0;
-
-    final availableWidth = screenWidth - padding - sidebarWidth;
-    final columnSpacing = 16.0 * (columns - 1);
-
-    return (availableWidth - columnSpacing) / columns;
+  // Kanban specific
+  static int getKanbanColumns(BuildContext context) {
+    if (isLargeScreen(context)) return 4;
+    if (isMediumScreen(context)) return 3;
+    return 1;
   }
 
-  static double getTaskCardMinHeight() {
-    return isWeb ? 120.0 : 100.0;
+  static bool shouldShowSidebar(BuildContext context) {
+    return MediaQuery.of(context).size.width > 1024;
   }
 
-  // Animation durations
+  // Performance optimizations
   static Duration getDefaultAnimationDuration() {
-    return const Duration(milliseconds: 300);
+    return const Duration(milliseconds: 250);
   }
 
   static Duration getFastAnimationDuration() {
     return const Duration(milliseconds: 150);
   }
 
-  // Helper methods for backward compatibility
+  // Task card sizing
+  static double getTaskCardWidth(BuildContext context) {
+    final padding = getPagePadding(context).horizontal;
+    final availableWidth = MediaQuery.of(context).size.width - padding;
+
+    if (isLargeScreen(context)) {
+      return (availableWidth / 4) - 20; // 4 columns
+    } else if (isMediumScreen(context)) {
+      return (availableWidth / 3) - 20; // 3 columns
+    } else {
+      return availableWidth - 20; // 1 column
+    }
+  }
+
+  static double getTaskCardMinHeight() {
+    return 120;
+  }
+
+  // Missing methods needed by other components
+  static bool isMobileSize(BuildContext context) {
+    return MediaQuery.of(context).size.width < 768;
+  }
+
   static double getSpacing(double multiplier) {
     return 8.0 * multiplier;
   }
 
-  static double getDialogMaxWidth([BuildContext? context]) {
-    if (context != null && isWeb) {
-      final screenWidth = MediaQuery.of(context).size.width;
-      if (screenWidth > 1200) return 600;
-      if (screenWidth > 800) return 500;
-      return screenWidth * 0.9;
-    }
-    return isWeb ? 600 : 400;
+  static double getDialogMaxWidth(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth > 1200) return 800;
+    if (screenWidth > 768) return screenWidth * 0.7;
+    return screenWidth * 0.9;
   }
-}
 
-class ResponsiveBreakpoints {
-  static const double mobile = 600;
-  static const double tablet = 900;
-  static const double desktop = 1200;
-  static const double widescreen = 1600;
-}
+  static TextStyle getTitleStyle(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width > 1200) {
+      return const TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.w600,
+        height: 1.3,
+      );
+    } else if (width > 768) {
+      return const TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        height: 1.3,
+      );
+    } else {
+      return const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        height: 1.3,
+      );
+    }
+  }
 
-class ResponsiveLayout extends StatelessWidget {
-  final Widget mobile;
-  final Widget? tablet;
-  final Widget? desktop;
-
-  const ResponsiveLayout({
-    super.key,
-    required this.mobile,
-    this.tablet,
-    this.desktop,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= ResponsiveBreakpoints.desktop) {
-          return desktop ?? tablet ?? mobile;
-        } else if (constraints.maxWidth >= ResponsiveBreakpoints.tablet) {
-          return tablet ?? mobile;
-        } else {
-          return mobile;
-        }
-      },
-    );
+  static TextStyle getCaptionStyle(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width > 1200) {
+      return TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.4);
+    } else if (width > 768) {
+      return TextStyle(fontSize: 11, color: Colors.grey[600], height: 1.4);
+    } else {
+      return TextStyle(fontSize: 10, color: Colors.grey[600], height: 1.4);
+    }
   }
 }

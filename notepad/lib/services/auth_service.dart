@@ -2,15 +2,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import 'firestore_service.dart';
-import '../utils/platform_checker.dart';
 
 class AuthService {
   FirebaseAuth? _auth;
   final FirestoreService _firestoreService = FirestoreService();
 
   AuthService() {
-    // Firebase Auth sadece mobile ve web'de çalışır
-    if (PlatformChecker.supportsFirebaseAuth) {
+    // Firebase Auth web'de çalışır
+    if (kIsWeb) {
       _auth = FirebaseAuth.instance;
     }
   }

@@ -4,6 +4,7 @@ import '../models/task.dart';
 import '../models/person.dart';
 import '../providers/task_provider.dart';
 import '../providers/person_provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/theme.dart';
 import '../utils/platform_utils.dart';
 import 'add_person_dialog.dart';
@@ -24,6 +25,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
   final _descriptionController = TextEditingController();
   bool _isLoading = false;
   Person? _selectedPerson;
+  TaskPriority _selectedPriority = TaskPriority.medium;
 
   bool get isEditing => widget.task != null;
 
@@ -34,6 +36,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
       _taskNumberController.text = widget.task!.taskNumber;
       _titleController.text = widget.task!.title;
       _descriptionController.text = widget.task!.description;
+      _selectedPriority = widget.task!.priority;
 
       // Set selected person if task is assigned
       if (widget.task!.assignedToId != null) {
@@ -109,7 +112,13 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
         borderRadius: PlatformUtils.getCardRadius(),
       ),
       title: _buildMobileHeader(),
-      content: SizedBox(width: double.maxFinite, child: _buildMobileForm()),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+          maxWidth: double.maxFinite,
+        ),
+        child: _buildMobileForm(),
+      ),
       actions: _buildMobileActions(),
     );
   }
@@ -338,6 +347,58 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                 prefixIcon: Icon(Icons.description),
                 alignLabelWithHint: true,
               ),
+            ),
+            const SizedBox(height: 16),
+
+            // Priority Field
+            DropdownButtonFormField<TaskPriority>(
+              value: _selectedPriority,
+              decoration: const InputDecoration(
+                labelText: 'Öncelik',
+                prefixIcon: Icon(Icons.priority_high),
+              ),
+              items:
+                  TaskPriority.values.map((priority) {
+                    IconData icon;
+                    Color color;
+                    String label;
+
+                    switch (priority) {
+                      case TaskPriority.low:
+                        icon = Icons.arrow_downward;
+                        color = Colors.green;
+                        label = 'Düşük';
+                        break;
+                      case TaskPriority.medium:
+                        icon = Icons.arrow_forward;
+                        color = Colors.orange;
+                        label = 'Orta';
+                        break;
+                      case TaskPriority.high:
+                        icon = Icons.arrow_upward;
+                        color = Colors.red;
+                        label = 'Yüksek';
+                        break;
+                    }
+
+                    return DropdownMenuItem(
+                      value: priority,
+                      child: Row(
+                        children: [
+                          Icon(icon, color: color, size: 16),
+                          const SizedBox(width: 8),
+                          Text(label),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedPriority = value;
+                  });
+                }
+              },
             ),
 
             const SizedBox(height: 16),
@@ -615,27 +676,34 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
 
     try {
       final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-      if (isEditing) {
-        // Update existing task
-        await taskProvider.updateTask(
-          widget.task!.id,
-          title: _titleController.text.trim(),
-          description: _descriptionController.text.trim(),
-          assignedToId: _selectedPerson?.id,
-          assignedToName: _selectedPerson?.name,
-        );
-      } else {
-        // Create new task
-        await taskProvider.createTask(
-          taskNumber: _taskNumberController.text.trim(),
-          title: _titleController.text.trim(),
-          description: _descriptionController.text.trim(),
-          assignedToId: _selectedPerson?.id,
-          assignedToName: _selectedPerson?.name,
-        );
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      if (authProvider.user == null) {
+        throw Exception('User not authenticated');
       }
 
-      if (mounted) {
+      final task = Task(
+        id: isEditing ? widget.task!.id : '',
+        taskNumber: _taskNumberController.text.trim(),
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        status: isEditing ? widget.task!.status : TaskStatus.todo,
+        priority: _selectedPriority,
+        assignedToId: _selectedPerson?.id,
+        assignedToName: _selectedPerson?.name,
+        createdAt: isEditing ? widget.task!.createdAt : DateTime.now(),
+        updatedAt: DateTime.now(),
+        userId: authProvider.user!.uid,
+      );
+
+      bool success;
+      if (isEditing) {
+        success = await taskProvider.updateTask(task);
+      } else {
+        success = await taskProvider.addTask(task);
+      }
+
+      if (success && mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

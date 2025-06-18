@@ -50,57 +50,14 @@ class _ResponsiveWebKanbanLayoutState extends State<ResponsiveWebKanbanLayout> {
         final allTasks =
             widget.isFiltered ? widget.filteredTasks : taskProvider.tasks;
 
-        return ResponsiveLayout(
-          mobile: _buildMobileLayout(allTasks, taskProvider),
-          tablet: _buildTabletLayout(allTasks, taskProvider),
-          desktop: _buildDesktopLayout(allTasks, taskProvider),
-        );
+        // Always use desktop layout for web
+        return _buildDesktopLayout(allTasks, taskProvider);
       },
     );
-  }
-
-  Widget _buildMobileLayout(List<Task> allTasks, TaskProvider taskProvider) {
-    return _buildSingleColumnLayout(allTasks, taskProvider);
-  }
-
-  Widget _buildTabletLayout(List<Task> allTasks, TaskProvider taskProvider) {
-    return _buildMultiColumnLayout(allTasks, taskProvider, 2);
   }
 
   Widget _buildDesktopLayout(List<Task> allTasks, TaskProvider taskProvider) {
     return _buildMultiColumnLayout(allTasks, taskProvider, 4);
-  }
-
-  Widget _buildSingleColumnLayout(
-    List<Task> allTasks,
-    TaskProvider taskProvider,
-  ) {
-    return ListView.builder(
-      padding: PlatformUtils.getPagePadding(context),
-      itemCount: TaskStatus.values.length,
-      itemBuilder: (context, index) {
-        final status = TaskStatus.values[index];
-        final statusTasks =
-            allTasks.where((task) => task.status == status).toList();
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildColumnHeader(status, statusTasks.length),
-              const Divider(height: 1),
-              if (statusTasks.isEmpty)
-                _buildEmptyState(status)
-              else
-                ...statusTasks.map(
-                  (task) => _buildMobileTaskCard(task, taskProvider),
-                ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   Widget _buildMultiColumnLayout(
@@ -275,59 +232,6 @@ class _ResponsiveWebKanbanLayoutState extends State<ResponsiveWebKanbanLayout> {
     );
   }
 
-  Widget _buildEmptyState(TaskStatus status) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        children: [
-          Icon(
-            _getStatusIcon(status),
-            size: 48,
-            color: AppTheme.getStatusColor(status.value).withOpacity(0.3),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Henüz ${status.displayName.toLowerCase()} task yok',
-            style: AppTheme.getResponsiveTextStyle(
-              context,
-              baseFontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileTaskCard(Task task, TaskProvider taskProvider) {
-    return Container(
-      margin: const EdgeInsets.all(12),
-      child: ResponsiveDraggableTaskCard(
-        task: task,
-        onEdit: () => widget.onEditTask(task),
-        onDelete: () => widget.onDeleteTask(task),
-        onStatusChanged: (newStatus) async {
-          await taskProvider.updateTaskStatus(task.id, newStatus);
-          _showStatusChangeSnackbar(task, newStatus);
-        },
-      ),
-    );
-  }
-
-  IconData _getStatusIcon(TaskStatus status) {
-    switch (status) {
-      case TaskStatus.todo:
-        return Icons.assignment_outlined;
-      case TaskStatus.inProgress:
-        return Icons.work_outline;
-      case TaskStatus.done:
-        return Icons.check_circle_outline;
-      case TaskStatus.blocked:
-        return Icons.block_outlined;
-    }
-  }
-
   void _showStatusChangeSnackbar(Task task, TaskStatus newStatus) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -361,14 +265,14 @@ class ResponsiveWebSidePanel extends StatelessWidget {
   final List<Task> tasks;
   final Function() onAddTask;
   final Function() onManagePeople;
-  final Function() onShowFilters;
+  final Function()? onShowFilters;
 
   const ResponsiveWebSidePanel({
     super.key,
     required this.tasks,
     required this.onAddTask,
     required this.onManagePeople,
-    required this.onShowFilters,
+    this.onShowFilters,
   });
 
   @override
@@ -377,7 +281,7 @@ class ResponsiveWebSidePanel extends StatelessWidget {
 
     return Container(
       width: sidebarWidth,
-      padding: EdgeInsets.all(PlatformUtils.isMobileSize(context) ? 16 : 24),
+      padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(right: BorderSide(color: AppColors.divider, width: 1)),
@@ -495,12 +399,13 @@ class ResponsiveWebSidePanel extends StatelessWidget {
               onTap: onManagePeople,
             ),
             const SizedBox(height: 12),
-            _ActionButton(
-              icon: Icons.filter_list,
-              label: 'Filtreler',
-              color: AppColors.warning,
-              onTap: onShowFilters,
-            ),
+            if (onShowFilters != null)
+              _ActionButton(
+                icon: Icons.filter_list,
+                label: 'Filtreler',
+                color: AppColors.warning,
+                onTap: onShowFilters!,
+              ),
           ],
         ),
       ),

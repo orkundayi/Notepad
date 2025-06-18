@@ -1,43 +1,31 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/person.dart';
 import '../models/user.dart';
 import '../services/firestore_service.dart';
-import '../services/local_storage_service.dart';
 
 class PersonProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
-  final LocalStorageService _localStorageService = LocalStorageService();
   final Uuid _uuid = const Uuid();
 
   List<Person> _people = [];
   bool _isLoading = false;
-  bool _isOfflineMode = false;
   String? _currentUserId;
 
   List<Person> get people => _people;
   bool get isLoading => _isLoading;
-  bool get isOfflineMode => _isOfflineMode;
 
-  // Initialize provider
-  Future<void> initialize(AppUser? user, bool isOfflineMode) async {
+  // Initialize provider - Web only
+  Future<void> initialize(AppUser? user) async {
     if (user != null) {
       _currentUserId = user.uid;
-    } else {
-      _currentUserId = 'offline_user';
-    }
-
-    // Web'de her zaman online mode
-    if (kIsWeb) {
-      _isOfflineMode = false;
-    } else {
-      _isOfflineMode = isOfflineMode;
     }
 
     await loadPeople();
   }
 
-  // Load people based on current mode
+  // Load people - Web only (always from Firestore)
   Future<void> loadPeople() async {
     if (_currentUserId == null) return;
 
@@ -45,33 +33,29 @@ class PersonProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      if (!kIsWeb && _isOfflineMode) {
-        _people = await _localStorageService.getLocalPeople(_currentUserId!);
-      } else {
-        // Load from Firestore
-        _firestoreService.getUserPeople(_currentUserId!).listen((people) {
-          _people = people;
-          notifyListeners();
-        });
-      }
+      // Always load from Firestore for web
+      _firestoreService.getUserPeople(_currentUserId!).listen((people) {
+        _people = people;
+        _isLoading = false;
+        notifyListeners();
+      });
     } catch (e) {
       if (kDebugMode) {
         print('Error loading people: $e');
       }
-    } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
   // Create a new person
-  Future<void> createPerson({
+  Future<bool> createPerson({
     required String name,
     required String email,
     String? department,
     String? role,
   }) async {
-    if (_currentUserId == null) return;
+    if (_currentUserId == null) return false;
 
     try {
       final now = DateTime.now();
@@ -80,78 +64,54 @@ class PersonProvider with ChangeNotifier {
         name: name,
         email: email,
         department: department,
-        role: role,
+        role: role ?? 'Team Member',
         createdAt: now,
         updatedAt: now,
         userId: _currentUserId!,
       );
 
-      if (!kIsWeb && _isOfflineMode) {
-        await _localStorageService.savePersonLocally(person);
-        _people.insert(0, person);
-      } else {
-        await _firestoreService.createPerson(person);
-        // Firestore stream will automatically update the list
-      }
-
+      await _firestoreService.createPerson(person);
       notifyListeners();
+      return true;
     } catch (e) {
+      if (kDebugMode) {
+        print('Error creating person: $e');
+      }
       rethrow;
     }
   }
 
-  // Update person
-  Future<void> updatePerson(
-    String personId, {
-    String? name,
-    String? email,
-    String? department,
-    String? role,
-  }) async {
+  // Update a person
+  Future<bool> updatePerson(Person person) async {
     try {
-      final updates = <String, dynamic>{};
-      if (name != null) updates['name'] = name;
-      if (email != null) updates['email'] = email;
-      if (department != null) updates['department'] = department;
-      if (role != null) updates['role'] = role;
-
-      if (!kIsWeb && _isOfflineMode) {
-        final personIndex = _people.indexWhere(
-          (person) => person.id == personId,
-        );
-        if (personIndex != -1) {
-          final updatedPerson = _people[personIndex].copyWith(
-            name: name,
-            email: email,
-            department: department,
-            role: role,
-            updatedAt: DateTime.now(),
-          );
-          await _localStorageService.updateLocalPerson(updatedPerson);
-          _people[personIndex] = updatedPerson;
-        }
-      } else {
-        await _firestoreService.updatePerson(personId, updates);
-      }
-
+      final updates = {
+        'name': person.name,
+        'email': person.email,
+        'department': person.department,
+        'role': person.role,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      };
+      await _firestoreService.updatePerson(person.id, updates);
       notifyListeners();
+      return true;
     } catch (e) {
+      if (kDebugMode) {
+        print('Error updating person: $e');
+      }
       rethrow;
     }
   }
 
-  // Delete person
-  Future<void> deletePerson(String personId) async {
+  // Delete a person
+  Future<bool> deletePerson(String personId) async {
     try {
-      if (!kIsWeb && _isOfflineMode) {
-        await _localStorageService.deleteLocalPerson(personId);
-        _people.removeWhere((person) => person.id == personId);
-      } else {
-        await _firestoreService.deletePerson(personId);
-      }
-
+      await _firestoreService.deletePerson(personId);
       notifyListeners();
+      return true;
     } catch (e) {
+      if (kDebugMode) {
+        print('Error deleting person: $e');
+      }
       rethrow;
     }
   }
@@ -173,20 +133,17 @@ class PersonProvider with ChangeNotifier {
     return _people.where((person) {
       return person.name.toLowerCase().contains(lowercaseQuery) ||
           person.email.toLowerCase().contains(lowercaseQuery) ||
-          (person.department?.toLowerCase().contains(lowercaseQuery) ??
-              false) ||
           (person.role?.toLowerCase().contains(lowercaseQuery) ?? false);
     }).toList();
   }
 
-  // Clear all data
-  Future<void> clearAllData() async {
-    _people.clear();
-    _currentUserId = null;
-    _isOfflineMode = false;
-    if (!kIsWeb) {
-      await _localStorageService.clearLocalPeople();
+  // Get people statistics
+  Map<String, int> getPeopleStatistics() {
+    final roles = <String, int>{};
+    for (final person in _people) {
+      final role = person.role ?? 'Unknown';
+      roles[role] = (roles[role] ?? 0) + 1;
     }
-    notifyListeners();
+    return {'total': _people.length, ...roles};
   }
 }

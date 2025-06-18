@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/person_provider.dart';
@@ -7,7 +8,6 @@ import '../models/task.dart';
 import '../models/person.dart';
 import '../utils/theme.dart';
 import '../utils/platform_utils.dart';
-import '../widgets/add_task_dialog.dart';
 import '../widgets/responsive_web_kanban.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -40,10 +40,7 @@ class _HomeScreenState extends State<HomeScreen>
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final personProvider = Provider.of<PersonProvider>(context, listen: false);
     await taskProvider.initialize(authProvider.user);
-    await personProvider.initialize(
-      authProvider.user,
-      taskProvider.isOfflineMode,
-    );
+    await personProvider.initialize(authProvider.user);
   }
 
   @override
@@ -55,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return PlatformUtils.isWeb ? _buildWebLayout() : _buildMobileLayout();
+    return _buildWebLayout();
   }
 
   Widget _buildWebLayout() {
@@ -71,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen>
                 return ResponsiveWebSidePanel(
                   tasks: tasks,
                   onAddTask: () => _showAddTaskDialog(context),
-                  onManagePeople: () => Navigator.pushNamed(context, '/people'),
+                  onManagePeople: () => context.go('/people'),
                   onShowFilters: () => _showPersonFilterDialog(),
                 );
               },
@@ -122,10 +119,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildResponsiveWebHeader() {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: PlatformUtils.isMobileSize(context) ? 16 : 32,
-        vertical: PlatformUtils.isMobileSize(context) ? 12 : 16,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
@@ -149,34 +143,25 @@ class _HomeScreenState extends State<HomeScreen>
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    if (!PlatformUtils.isMobileSize(context))
-                      Text(
-                        'Profesyonel Web Dashboard',
-                        style: AppTheme.getResponsiveTextStyle(
-                          context,
-                          baseFontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
+                    Text(
+                      'Profesyonel Web Dashboard',
+                      style: AppTheme.getResponsiveTextStyle(
+                        context,
+                        baseFontSize: 14,
+                        color: AppColors.textSecondary,
                       ),
+                    ),
                   ],
                 ),
               ),
 
               // Search and Actions
-              if (!PlatformUtils.isMobileSize(context)) ...[
-                const SizedBox(width: 24),
-                _buildSearchBar(),
-                const SizedBox(width: 16),
-                _buildHeaderActions(),
-              ],
+              const SizedBox(width: 24),
+              _buildSearchBar(),
+              const SizedBox(width: 16),
+              _buildHeaderActions(),
             ],
           ),
-
-          // Mobile search bar
-          if (PlatformUtils.isMobileSize(context)) ...[
-            const SizedBox(height: 12),
-            _buildSearchBar(),
-          ],
         ],
       ),
     );
@@ -184,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildSearchBar() {
     return Container(
-      width: PlatformUtils.isMobileSize(context) ? double.infinity : 300,
+      width: 300,
       height: 40,
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant,
@@ -356,69 +341,6 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Mobile Layout Methods
-  Widget _buildMobileLayout() {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Task Manager'),
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => _showMobileSearch(),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'people':
-                  Navigator.pushNamed(context, '/people');
-                  break;
-                case 'logout':
-                  _handleLogout();
-                  break;
-              }
-            },
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    value: 'people',
-                    child: Text('Kişileri Yönet'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'logout',
-                    child: Text('Çıkış Yap'),
-                  ),
-                ],
-          ),
-        ],
-      ),
-      body: Consumer<TaskProvider>(
-        builder: (context, taskProvider, child) {
-          if (taskProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final tasks = _getFilteredTasks(taskProvider);
-
-          return ResponsiveWebKanbanLayout(
-            filteredTasks: tasks,
-            isFiltered: _isPersonFilterActive || _isSearching,
-            onRefresh: () => taskProvider.loadTasks(),
-            onEditTask: (task) => _showEditTaskDialog(context, task),
-            onDeleteTask:
-                (task) => _showDeleteConfirmation(context, task, taskProvider),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddTaskDialog(context),
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
   // Helper methods
   List<Task> _getFilteredTasks(TaskProvider taskProvider) {
     List<Task> tasks = taskProvider.tasks;
@@ -455,14 +377,11 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _showAddTaskDialog(BuildContext context) {
-    showDialog(context: context, builder: (context) => const AddTaskDialog());
+    context.go('/task/create');
   }
 
   void _showEditTaskDialog(BuildContext context, Task task) {
-    showDialog(
-      context: context,
-      builder: (context) => AddTaskDialog(task: task),
-    );
+    context.go('/task/edit/${task.id}', extra: task);
   }
 
   void _showDeleteConfirmation(
@@ -541,75 +460,142 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _showMobileSearch() {
-    showSearch(
-      context: context,
-      delegate: TaskSearchDelegate(
-        _getFilteredTasks(Provider.of<TaskProvider>(context, listen: false)),
-      ),
-    );
-  }
-
   void _handleLogout() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     authProvider.signOut();
   }
-}
 
-class TaskSearchDelegate extends SearchDelegate<Task?> {
-  final List<Task> tasks;
-
-  TaskSearchDelegate(this.tasks);
-
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      IconButton(
-        icon: const Icon(Icons.clear),
-        onPressed: () {
-          query = '';
-        },
+  Widget _buildFilterBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, null);
-      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.filter_list_rounded, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Filters',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              if (_isPersonFilterActive)
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _isPersonFilterActive = false;
+                      _selectedPersonFilter = null;
+                    });
+                  },
+                  icon: const Icon(Icons.clear, size: 16),
+                  label: const Text('Clear All'),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildPersonFilter(),
+        ],
+      ),
     );
   }
 
-  @override
-  Widget buildResults(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  Widget _buildSearchResults() {
-    final filteredTasks =
-        tasks.where((task) {
-          return task.title.toLowerCase().contains(query.toLowerCase()) ||
-              task.description.toLowerCase().contains(query.toLowerCase());
-        }).toList();
-
-    return ListView.builder(
-      itemCount: filteredTasks.length,
-      itemBuilder: (context, index) {
-        final task = filteredTasks[index];
-        return ListTile(
-          title: Text(task.title),
-          subtitle: Text(task.description),
-          onTap: () {
-            close(context, task);
-          },
+  Widget _buildPersonFilter() {
+    return Consumer<PersonProvider>(
+      builder: (context, personProvider, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Assign to:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilterChip(
+                  label: const Text('All'),
+                  selected: !_isPersonFilterActive,
+                  onSelected: (selected) {
+                    setState(() {
+                      _isPersonFilterActive = false;
+                      _selectedPersonFilter = null;
+                    });
+                  },
+                  backgroundColor: Colors.grey.shade100,
+                  selectedColor: Theme.of(
+                    context,
+                  ).primaryColor.withOpacity(0.2),
+                  checkmarkColor: Theme.of(context).primaryColor,
+                ),
+                FilterChip(
+                  label: const Text('Unassigned'),
+                  selected:
+                      _isPersonFilterActive && _selectedPersonFilter == null,
+                  onSelected: (selected) {
+                    setState(() {
+                      _isPersonFilterActive = true;
+                      _selectedPersonFilter = null;
+                    });
+                  },
+                  backgroundColor: Colors.grey.shade100,
+                  selectedColor: Colors.orange.withOpacity(0.2),
+                  checkmarkColor: Colors.orange,
+                ),
+                ...personProvider.people.map((person) {
+                  final isSelected =
+                      _isPersonFilterActive &&
+                      _selectedPersonFilter?.id == person.id;
+                  return FilterChip(
+                    avatar: CircleAvatar(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      radius: 12,
+                      child: Text(
+                        person.name.isNotEmpty
+                            ? person.name[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    label: Text(person.name),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        _isPersonFilterActive = selected;
+                        _selectedPersonFilter = selected ? person : null;
+                      });
+                    },
+                    backgroundColor: Colors.grey.shade100,
+                    selectedColor: Theme.of(
+                      context,
+                    ).primaryColor.withOpacity(0.2),
+                    checkmarkColor: Theme.of(context).primaryColor,
+                  );
+                }),
+              ],
+            ),
+          ],
         );
       },
     );

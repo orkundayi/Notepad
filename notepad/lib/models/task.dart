@@ -18,12 +18,30 @@ enum TaskStatus {
   }
 }
 
+enum TaskPriority {
+  low('Low', 'Düşük'),
+  medium('Medium', 'Orta'),
+  high('High', 'Yüksek');
+
+  const TaskPriority(this.value, this.displayName);
+  final String value;
+  final String displayName;
+
+  static TaskPriority fromString(String value) {
+    return TaskPriority.values.firstWhere(
+      (priority) => priority.value == value,
+      orElse: () => TaskPriority.medium,
+    );
+  }
+}
+
 class Task {
   final String id;
   final String taskNumber;
   final String title;
   final String description;
   final TaskStatus status;
+  final TaskPriority priority;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String userId;
@@ -36,6 +54,7 @@ class Task {
     required this.title,
     required this.description,
     required this.status,
+    this.priority = TaskPriority.medium,
     required this.createdAt,
     required this.updatedAt,
     required this.userId,
@@ -50,6 +69,7 @@ class Task {
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       status: TaskStatus.fromString(data['status'] ?? 'Todo'),
+      priority: TaskPriority.fromString(data['priority'] ?? 'Medium'),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updatedAt'] as Timestamp).toDate(),
       userId: data['userId'] ?? '',
@@ -65,6 +85,7 @@ class Task {
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       status: TaskStatus.fromString(json['status'] ?? 'Todo'),
+      priority: TaskPriority.fromString(json['priority'] ?? 'Medium'),
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       userId: json['userId'] ?? '',
@@ -78,6 +99,7 @@ class Task {
       'title': title,
       'description': description,
       'status': status.value,
+      'priority': priority.value,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'userId': userId,
@@ -93,6 +115,7 @@ class Task {
       'title': title,
       'description': description,
       'status': status.value,
+      'priority': priority.value,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'userId': userId,
@@ -107,6 +130,7 @@ class Task {
     String? title,
     String? description,
     TaskStatus? status,
+    TaskPriority? priority,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? userId,
@@ -119,6 +143,7 @@ class Task {
       title: title ?? this.title,
       description: description ?? this.description,
       status: status ?? this.status,
+      priority: priority ?? this.priority,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       userId: userId ?? this.userId,

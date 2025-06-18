@@ -1,28 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/task.dart';
 import '../utils/theme.dart';
 import '../utils/platform_utils.dart';
 
 class TaskCard extends StatelessWidget {
   final Task task;
-  final Function(TaskStatus) onStatusChanged;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final Function(TaskStatus) onStatusChanged;
 
   const TaskCard({
     super.key,
     required this.task,
-    required this.onStatusChanged,
     required this.onEdit,
     required this.onDelete,
+    required this.onStatusChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return PlatformUtils.isWeb
-        ? _buildWebCard(context)
-        : _buildMobileCard(context);
+    return _buildWebCard(context);
   }
 
   Widget _buildWebCard(BuildContext context) {
@@ -31,109 +28,10 @@ class TaskCard extends StatelessWidget {
       elevation: PlatformUtils.getCardElevation(),
       shape: RoundedRectangleBorder(
         borderRadius: PlatformUtils.getCardRadius(),
-      ),
-      child: InkWell(
-        onTap: onEdit,
-        borderRadius: PlatformUtils.getCardRadius(),
-        child: Container(
-          padding: PlatformUtils.getCardPadding(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with hover effects
-              Row(
-                children: [
-                  // Task number chip - larger for web
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.getStatusColor(
-                        task.status.value,
-                      ).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppTheme.getStatusColor(
-                          task.status.value,
-                        ).withOpacity(0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Text(
-                      task.taskNumber,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.getStatusColor(task.status.value),
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  // Actions - more spacious for web
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildWebStatusDropdown(),
-                      SizedBox(width: PlatformUtils.getSpacing(1)),
-                      _buildWebActionButton(
-                        icon: Icons.edit_outlined,
-                        onPressed: onEdit,
-                        tooltip: 'Düzenle',
-                      ),
-                      SizedBox(width: PlatformUtils.getSpacing(0.5)),
-                      _buildWebActionButton(
-                        icon: Icons.delete_outline,
-                        onPressed: onDelete,
-                        tooltip: 'Sil',
-                        isDestructive: true,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              SizedBox(height: PlatformUtils.getSpacing(2)),
-
-              // Title - more prominent for web
-              Text(
-                task.title,
-                style: PlatformUtils.getSubtitleStyle(
-                  context,
-                ).copyWith(fontWeight: FontWeight.w600),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-
-              if (task.description.isNotEmpty) ...[
-                SizedBox(height: PlatformUtils.getSpacing(1)),
-                Text(
-                  task.description,
-                  style: PlatformUtils.getBodyStyle(
-                    context,
-                  ).copyWith(color: Colors.grey[600]),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-
-              SizedBox(height: PlatformUtils.getSpacing(2)),
-
-              // Footer info
-              _buildWebFooter(context),
-            ],
-          ),
+        side: BorderSide(
+          color: AppTheme.getStatusColor(task.status.value).withOpacity(0.2),
+          width: 1,
         ),
-      ),
-    );
-  }
-
-  Widget _buildMobileCard(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.only(bottom: PlatformUtils.getSpacing(1.5)),
-      elevation: PlatformUtils.getCardElevation(),
-      shape: RoundedRectangleBorder(
-        borderRadius: PlatformUtils.getCardRadius(),
       ),
       child: InkWell(
         onTap: onEdit,
@@ -143,66 +41,15 @@ class TaskCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header - compact for mobile
-              Row(
-                children: [
-                  // Task number chip - smaller for mobile
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.getStatusColor(
-                        task.status.value,
-                      ).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: AppTheme.getStatusColor(
-                          task.status.value,
-                        ).withOpacity(0.3),
-                      ),
-                    ),
-                    child: Text(
-                      task.taskNumber,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.getStatusColor(task.status.value),
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  // Status dropdown - mobile friendly
-                  _buildMobileStatusDropdown(),
-                ],
-              ),
+              _buildWebHeader(context),
               SizedBox(height: PlatformUtils.getSpacing(1.5)),
-
-              // Title
-              Text(
-                task.title,
-                style: PlatformUtils.getSubtitleStyle(context),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-
+              _buildContent(context),
               if (task.description.isNotEmpty) ...[
                 SizedBox(height: PlatformUtils.getSpacing(1)),
-                Text(
-                  task.description,
-                  style: PlatformUtils.getBodyStyle(
-                    context,
-                  ).copyWith(color: Colors.grey[600]),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                _buildDescription(context),
               ],
-
-              SizedBox(height: PlatformUtils.getSpacing(1.5)),
-
-              // Footer info
-              _buildMobileFooter(context),
+              SizedBox(height: PlatformUtils.getSpacing(2)),
+              _buildWebFooter(context),
             ],
           ),
         ),
@@ -210,146 +57,148 @@ class TaskCard extends StatelessWidget {
     );
   }
 
-  Widget _buildWebStatusDropdown() {
-    return PopupMenuButton<TaskStatus>(
-      onSelected: onStatusChanged,
-      tooltip: 'Durum değiştir',
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppTheme.getStatusColor(task.status.value),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
+  Widget _buildWebHeader(BuildContext context) {
+    return Row(
+      children: [
+        // Task number chip
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.getStatusColor(task.status.value).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
               color: AppTheme.getStatusColor(
                 task.status.value,
               ).withOpacity(0.3),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              width: 1,
             ),
-          ],
+          ),
+          child: Text(
+            task.taskNumber,
+            style: TextStyle(
+              color: AppTheme.getStatusColor(task.status.value),
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(_getStatusIcon(task.status), size: 16, color: Colors.white),
-            const SizedBox(width: 6),
-            Text(
-              task.status.displayName,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.keyboard_arrow_down,
-              size: 18,
-              color: Colors.white,
-            ),
-          ],
-        ),
-      ),
-      itemBuilder:
-          (context) =>
-              TaskStatus.values.map((status) {
-                return PopupMenuItem<TaskStatus>(
-                  value: status,
+        const Spacer(),
+        // Status dropdown
+        _buildWebStatusDropdown(),
+        const SizedBox(width: 8),
+        // More options
+        PopupMenuButton<String>(
+          onSelected: (value) {
+            switch (value) {
+              case 'edit':
+                onEdit();
+                break;
+              case 'delete':
+                onDelete();
+                break;
+            }
+          },
+          itemBuilder:
+              (context) => [
+                const PopupMenuItem(
+                  value: 'edit',
                   child: Row(
                     children: [
-                      Icon(
-                        _getStatusIcon(status),
-                        size: 16,
-                        color: AppTheme.getStatusColor(status.value),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        status.displayName,
-                        style: TextStyle(
-                          color:
-                              status == task.status
-                                  ? AppTheme.getStatusColor(status.value)
-                                  : null,
-                          fontWeight:
-                              status == task.status ? FontWeight.w600 : null,
-                        ),
-                      ),
+                      Icon(Icons.edit, size: 16),
+                      SizedBox(width: 8),
+                      Text('Düzenle'),
                     ],
                   ),
-                );
-              }).toList(),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, size: 16, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Sil', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(Icons.more_vert, size: 16, color: Colors.grey[600]),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildMobileStatusDropdown() {
-    return PopupMenuButton<TaskStatus>(
-      onSelected: onStatusChanged,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppTheme.getStatusColor(task.status.value),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(_getStatusIcon(task.status), size: 14, color: Colors.white),
-            const SizedBox(width: 4),
-            Text(
-              task.status.displayName,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
-          ],
+  Widget _buildContent(BuildContext context) {
+    return Text(
+      task.title,
+      style: PlatformUtils.getSubtitleStyle(
+        context,
+      ).copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _buildDescription(BuildContext context) {
+    return Text(
+      task.description,
+      style: PlatformUtils.getCaptionStyle(context),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _buildWebStatusDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.getStatusColor(task.status.value).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.getStatusColor(task.status.value).withOpacity(0.3),
         ),
       ),
-      itemBuilder:
-          (context) =>
-              TaskStatus.values.map((status) {
-                return PopupMenuItem<TaskStatus>(
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<TaskStatus>(
+          value: task.status,
+          isDense: true,
+          style: TextStyle(
+            color: AppTheme.getStatusColor(task.status.value),
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
+          onChanged: (TaskStatus? newStatus) {
+            if (newStatus != null) {
+              onStatusChanged(newStatus);
+            }
+          },
+          items:
+              TaskStatus.values.map((TaskStatus status) {
+                return DropdownMenuItem<TaskStatus>(
                   value: status,
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        _getStatusIcon(status),
-                        size: 14,
-                        color: AppTheme.getStatusColor(status.value),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: AppTheme.getStatusColor(status.value),
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Text(status.displayName),
                     ],
                   ),
                 );
               }).toList(),
-    );
-  }
-
-  Widget _buildWebActionButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-    required String tooltip,
-    bool isDestructive = false,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            child: Icon(
-              icon,
-              size: 18,
-              color: isDestructive ? Colors.red[600] : Colors.grey[600],
-            ),
-          ),
         ),
       ),
     );
@@ -358,97 +207,65 @@ class TaskCard extends StatelessWidget {
   Widget _buildWebFooter(BuildContext context) {
     return Row(
       children: [
-        if (task.assignedToName != null) ...[
-          Icon(Icons.person_outline, size: 16, color: Colors.grey[600]),
-          const SizedBox(width: 4),
-          Text(
-            task.assignedToName!,
-            style: PlatformUtils.getCaptionStyle(
-              context,
-            ).copyWith(color: Colors.grey[600], fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(width: 16),
-        ],
-        Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-        const SizedBox(width: 4),
-        Text(
-          DateFormat('dd MMM yyyy, HH:mm').format(task.createdAt),
-          style: PlatformUtils.getCaptionStyle(
-            context,
-          ).copyWith(color: Colors.grey[600]),
-        ),
-        if (task.updatedAt != task.createdAt) ...[
-          const SizedBox(width: 16),
-          Icon(Icons.edit_outlined, size: 16, color: Colors.grey[500]),
-          const SizedBox(width: 4),
-          Text(
-            DateFormat('dd MMM HH:mm').format(task.updatedAt),
-            style: PlatformUtils.getCaptionStyle(
-              context,
-            ).copyWith(color: Colors.grey[500]),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildMobileFooter(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (task.assignedToName != null) ...[
-          Row(
-            children: [
-              Icon(Icons.person_outline, size: 14, color: Colors.grey[600]),
-              const SizedBox(width: 4),
-              Text(
-                task.assignedToName!,
-                style: PlatformUtils.getCaptionStyle(context).copyWith(
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-        ],
+        // Priority indicator
         Row(
           children: [
-            Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+            Icon(
+              task.priority == TaskPriority.high
+                  ? Icons.keyboard_arrow_up
+                  : task.priority == TaskPriority.medium
+                  ? Icons.remove
+                  : Icons.keyboard_arrow_down,
+              size: 16,
+              color:
+                  task.priority == TaskPriority.high
+                      ? Colors.red
+                      : task.priority == TaskPriority.medium
+                      ? Colors.orange
+                      : Colors.green,
+            ),
             const SizedBox(width: 4),
             Text(
-              DateFormat('dd/MM/yyyy HH:mm').format(task.createdAt),
-              style: PlatformUtils.getCaptionStyle(
-                context,
-              ).copyWith(color: Colors.grey[600]),
-            ),
-            if (task.updatedAt != task.createdAt) ...[
-              const SizedBox(width: 8),
-              Icon(Icons.edit_outlined, size: 12, color: Colors.grey[500]),
-              const SizedBox(width: 2),
-              Text(
-                DateFormat('dd/MM HH:mm').format(task.updatedAt),
-                style: PlatformUtils.getCaptionStyle(
-                  context,
-                ).copyWith(color: Colors.grey[500], fontSize: 11),
+              task.priority.displayName,
+              style: TextStyle(
+                fontSize: 11,
+                color:
+                    task.priority == TaskPriority.high
+                        ? Colors.red
+                        : task.priority == TaskPriority.medium
+                        ? Colors.orange
+                        : Colors.green,
+                fontWeight: FontWeight.w500,
               ),
-            ],
+            ),
           ],
+        ),
+        const Spacer(),
+        // Created date
+        Text(
+          _formatDate(task.createdAt),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
         ),
       ],
     );
   }
 
-  IconData _getStatusIcon(TaskStatus status) {
-    switch (status) {
-      case TaskStatus.todo:
-        return Icons.radio_button_unchecked;
-      case TaskStatus.inProgress:
-        return Icons.pending;
-      case TaskStatus.done:
-        return Icons.check_circle;
-      case TaskStatus.blocked:
-        return Icons.block;
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = date.difference(now).inDays;
+
+    if (difference == 0) {
+      return 'Bugün';
+    } else if (difference == 1) {
+      return 'Yarın';
+    } else if (difference == -1) {
+      return 'Dün';
+    } else if (difference > 1 && difference <= 7) {
+      return '$difference gün kaldı';
+    } else if (difference < -1 && difference >= -7) {
+      return '${difference.abs()} gün geçti';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
     }
   }
 }

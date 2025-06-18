@@ -16,28 +16,54 @@ class AuthProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
   bool get isFirebaseAvailable => _isFirebaseAvailable;
-
   AuthProvider() {
     _initializeAuth();
   }
-  void _initializeAuth() {
-    // Firebase artık Windows'ta da destekleniyor
-    _isFirebaseAvailable = true;
 
-    if (_isFirebaseAvailable) {
-      // Listen to auth state changes
-      _authService.authStateChanges.listen((User? firebaseUser) {
-        _user =
-            firebaseUser != null
-                ? AppUser(
-                  uid: firebaseUser.uid,
-                  email: firebaseUser.email ?? '',
-                  displayName: firebaseUser.displayName,
-                  lastLogin: DateTime.now(),
-                )
-                : null;
-        notifyListeners();
-      });
+  Future<void> _initializeAuth() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // Firebase artık Windows'ta da destekleniyor
+      _isFirebaseAvailable = true;
+
+      if (_isFirebaseAvailable) {
+        // Firebase Auth persistence otomatik olarak çalışır
+        // Sadece auth state değişikliklerini dinle
+        _authService.authStateChanges.listen((User? firebaseUser) {
+          _user =
+              firebaseUser != null
+                  ? AppUser(
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email ?? '',
+                    displayName: firebaseUser.displayName,
+                    lastLogin: DateTime.now(),
+                  )
+                  : null;
+
+          if (_isLoading) {
+            _isLoading = false;
+          }
+          notifyListeners();
+        });
+
+        // İlk auth state'i kontrol et
+        final currentUser = _authService.currentUser;
+        if (currentUser != null) {
+          _user = AppUser(
+            uid: currentUser.uid,
+            email: currentUser.email ?? '',
+            displayName: currentUser.displayName,
+            lastLogin: DateTime.now(),
+          );
+        }
+      }
+    } catch (e) {
+      _errorMessage = 'Auth initialization failed: ${e.toString()}';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   } // Sign in with email and password
 

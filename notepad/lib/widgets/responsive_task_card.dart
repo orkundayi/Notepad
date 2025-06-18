@@ -64,7 +64,7 @@ class _ResponsiveTaskCardState extends State<ResponsiveTaskCard>
                 elevation: _isHovered ? 8 : 2,
                 shadowColor: AppColors.cardShadow,
                 shape: RoundedRectangleBorder(
-                  borderRadius: PlatformUtils.getCardRadius(context),
+                  borderRadius: PlatformUtils.getCardRadius(),
                   side: BorderSide(
                     color:
                         _isHovered
@@ -77,9 +77,9 @@ class _ResponsiveTaskCardState extends State<ResponsiveTaskCard>
                 ),
                 child: InkWell(
                   onTap: widget.onEdit,
-                  borderRadius: PlatformUtils.getCardRadius(context),
+                  borderRadius: PlatformUtils.getCardRadius(),
                   child: Padding(
-                    padding: PlatformUtils.getCardPadding(context),
+                    padding: PlatformUtils.getCardPadding(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -273,7 +273,7 @@ class ResponsiveDraggableTaskCard extends StatelessWidget {
       data: task,
       feedback: Material(
         elevation: 8,
-        borderRadius: PlatformUtils.getCardRadius(context),
+        borderRadius: PlatformUtils.getCardRadius(),
         child: Container(
           width: PlatformUtils.getTaskCardWidth(context) * 0.9,
           constraints: const BoxConstraints(maxHeight: 200),

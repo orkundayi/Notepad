@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 enum TaskStatus {
   todo('Todo', 'Yapılacak'),
@@ -15,6 +16,33 @@ enum TaskStatus {
       (status) => status.value == value,
       orElse: () => TaskStatus.todo,
     );
+  }
+
+  // UI Properties
+  Color get color {
+    switch (this) {
+      case TaskStatus.todo:
+        return Colors.blue;
+      case TaskStatus.inProgress:
+        return Colors.orange;
+      case TaskStatus.done:
+        return Colors.green;
+      case TaskStatus.blocked:
+        return Colors.red;
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case TaskStatus.todo:
+        return Icons.assignment;
+      case TaskStatus.inProgress:
+        return Icons.work;
+      case TaskStatus.done:
+        return Icons.check_circle;
+      case TaskStatus.blocked:
+        return Icons.block;
+    }
   }
 }
 

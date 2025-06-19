@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/task.dart';
+import '../providers/responsive_provider.dart';
 import '../utils/theme.dart';
-import '../utils/platform_utils.dart';
 
 class ResponsiveTaskCard extends StatefulWidget {
   final Task task;
@@ -49,59 +50,73 @@ class _ResponsiveTaskCardState extends State<ResponsiveTaskCard>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: MouseRegion(
-            onEnter: (_) => _handleHover(true),
-            onExit: (_) => _handleHover(false),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(bottom: 12),
-              child: Card(
-                elevation: _isHovered ? 8 : 2,
-                shadowColor: AppColors.cardShadow,
-                shape: RoundedRectangleBorder(
-                  borderRadius: PlatformUtils.getCardRadius(),
-                  side: BorderSide(
-                    color:
+    return Consumer<ResponsiveProvider>(
+      builder: (context, responsive, child) {
+        return AnimatedBuilder(
+          animation: _scaleAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value,
+              child: MouseRegion(
+                onEnter: (_) => _handleHover(true),
+                onExit: (_) => _handleHover(false),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Card(
+                    elevation:
                         _isHovered
-                            ? AppTheme.getStatusColor(
-                              widget.task.status.value,
-                            ).withOpacity(0.3)
-                            : AppColors.divider,
-                    width: _isHovered ? 2 : 1,
-                  ),
-                ),
-                child: InkWell(
-                  onTap: widget.onEdit,
-                  borderRadius: PlatformUtils.getCardRadius(),
-                  child: Padding(
-                    padding: PlatformUtils.getCardPadding(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildTaskHeader(),
-                        const SizedBox(height: 8),
-                        _buildTaskContent(),
-                        const SizedBox(height: 12),
-                        _buildTaskFooter(),
-                      ],
+                            ? responsive.cardElevation * 2
+                            : responsive.cardElevation,
+                    shadowColor: AppColors.cardShadow,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        responsive.borderRadius,
+                      ),
+                      side: BorderSide(
+                        color:
+                            _isHovered
+                                ? AppTheme.getStatusColor(
+                                  widget.task.status.value,
+                                ).withOpacity(0.3)
+                                : AppColors.divider,
+                        width: _isHovered ? 2 : 1,
+                      ),
+                    ),
+                    child: InkWell(
+                      onTap: widget.onEdit,
+                      borderRadius: BorderRadius.circular(
+                        responsive.borderRadius,
+                      ),
+                      child: Padding(
+                        padding: responsive.responsivePadding(
+                          mobile: const EdgeInsets.all(16),
+                          desktop: const EdgeInsets.all(20),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildTaskHeader(responsive),
+                            const SizedBox(height: 8),
+                            _buildTaskContent(responsive),
+                            const SizedBox(height: 12),
+                            _buildTaskFooter(responsive),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildTaskHeader() {
+  Widget _buildTaskHeader(ResponsiveProvider responsive) {
     return Row(
       children: [
         Container(
@@ -114,9 +129,8 @@ class _ResponsiveTaskCardState extends State<ResponsiveTaskCard>
           ),
           child: Text(
             widget.task.taskNumber,
-            style: AppTheme.getResponsiveTextStyle(
-              context,
-              baseFontSize: 11,
+            style: TextStyle(
+              fontSize: responsive.getResponsiveFontSize(11),
               fontWeight: FontWeight.w600,
               color: AppTheme.getStatusColor(widget.task.status.value),
             ),
@@ -128,27 +142,28 @@ class _ResponsiveTaskCardState extends State<ResponsiveTaskCard>
             icon: Icons.edit,
             color: AppColors.primary,
             onTap: widget.onEdit,
+            responsive: responsive,
           ),
           const SizedBox(width: 8),
           _buildActionButton(
             icon: Icons.delete_outline,
             color: AppColors.error,
             onTap: widget.onDelete,
+            responsive: responsive,
           ),
         ],
       ],
     );
   }
 
-  Widget _buildTaskContent() {
+  Widget _buildTaskContent(ResponsiveProvider responsive) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           widget.task.title,
-          style: AppTheme.getResponsiveTextStyle(
-            context,
-            baseFontSize: 16,
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(16),
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),
@@ -159,9 +174,8 @@ class _ResponsiveTaskCardState extends State<ResponsiveTaskCard>
           const SizedBox(height: 4),
           Text(
             widget.task.description,
-            style: AppTheme.getResponsiveTextStyle(
-              context,
-              baseFontSize: 14,
+            style: TextStyle(
+              fontSize: responsive.getResponsiveFontSize(14),
               color: AppColors.textSecondary,
             ),
             maxLines: 3,
@@ -172,18 +186,18 @@ class _ResponsiveTaskCardState extends State<ResponsiveTaskCard>
     );
   }
 
-  Widget _buildTaskFooter() {
+  Widget _buildTaskFooter(ResponsiveProvider responsive) {
     return Row(
       children: [
         if (widget.task.assignedToName != null) ...[
-          _buildAssigneeChip(),
+          _buildAssigneeChip(responsive),
           const SizedBox(width: 8),
         ],
       ],
     );
   }
 
-  Widget _buildAssigneeChip() {
+  Widget _buildAssigneeChip(ResponsiveProvider responsive) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -209,9 +223,8 @@ class _ResponsiveTaskCardState extends State<ResponsiveTaskCard>
           const SizedBox(width: 6),
           Text(
             widget.task.assignedToName!,
-            style: AppTheme.getResponsiveTextStyle(
-              context,
-              baseFontSize: 12,
+            style: TextStyle(
+              fontSize: responsive.getResponsiveFontSize(12),
               fontWeight: FontWeight.w500,
               color: AppColors.textSecondary,
             ),
@@ -225,6 +238,7 @@ class _ResponsiveTaskCardState extends State<ResponsiveTaskCard>
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    required ResponsiveProvider responsive,
   }) {
     return InkWell(
       onTap: onTap,
@@ -235,7 +249,11 @@ class _ResponsiveTaskCardState extends State<ResponsiveTaskCard>
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Icon(icon, size: 16, color: color),
+        child: Icon(
+          icon,
+          size: responsive.getResponsiveFontSize(16),
+          color: color,
+        ),
       ),
     );
   }
@@ -269,38 +287,44 @@ class ResponsiveDraggableTaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Draggable<Task>(
-      data: task,
-      feedback: Material(
-        elevation: 8,
-        borderRadius: PlatformUtils.getCardRadius(),
-        child: Container(
-          width: PlatformUtils.getTaskCardWidth(context) * 0.9,
-          constraints: const BoxConstraints(maxHeight: 200),
+    return Consumer<ResponsiveProvider>(
+      builder: (context, responsive, child) {
+        return Draggable<Task>(
+          data: task,
+          feedback: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(responsive.borderRadius),
+            child: Container(
+              width:
+                  responsive.responsiveValue(mobile: 280.0, desktop: 320.0) *
+                  0.9,
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ResponsiveTaskCard(
+                task: task,
+                onEdit: onEdit,
+                onDelete: onDelete,
+                onStatusChanged: onStatusChanged,
+                isDragging: true,
+              ),
+            ),
+          ),
+          childWhenDragging: Opacity(
+            opacity: 0.3,
+            child: ResponsiveTaskCard(
+              task: task,
+              onEdit: onEdit,
+              onDelete: onDelete,
+              onStatusChanged: onStatusChanged,
+            ),
+          ),
           child: ResponsiveTaskCard(
             task: task,
             onEdit: onEdit,
             onDelete: onDelete,
             onStatusChanged: onStatusChanged,
-            isDragging: true,
           ),
-        ),
-      ),
-      childWhenDragging: Opacity(
-        opacity: 0.3,
-        child: ResponsiveTaskCard(
-          task: task,
-          onEdit: onEdit,
-          onDelete: onDelete,
-          onStatusChanged: onStatusChanged,
-        ),
-      ),
-      child: ResponsiveTaskCard(
-        task: task,
-        onEdit: onEdit,
-        onDelete: onDelete,
-        onStatusChanged: onStatusChanged,
-      ),
+        );
+      },
     );
   }
 }
@@ -351,53 +375,61 @@ class _ResponsiveTaskDropZoneState extends State<ResponsiveTaskDropZone>
 
   @override
   Widget build(BuildContext context) {
-    return DragTarget<Task>(
-      onAccept: (task) {
-        if (task.status != widget.status) {
-          widget.onTaskDropped(task, widget.status);
-        }
-        setState(() => _isDragOver = false);
-        _animationController.stop();
-      },
-      onWillAccept: (task) {
-        setState(() => _isDragOver = true);
-        _animationController.repeat(reverse: true);
-        return task != null && task.status != widget.status;
-      },
-      onLeave: (task) {
-        setState(() => _isDragOver = false);
-        _animationController.stop();
-      },
-      builder: (context, candidateData, rejectedData) {
-        return AnimatedBuilder(
-          animation: _pulseAnimation,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _isDragOver ? _pulseAnimation.value : 1.0,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color:
-                      _isDragOver
-                          ? AppTheme.getStatusColor(
-                            widget.status.value,
-                          ).withOpacity(0.1)
-                          : Colors.transparent,
-                  border:
-                      _isDragOver
-                          ? Border.all(
-                            color: AppTheme.getStatusColor(widget.status.value),
-                            width: 2,
-                          )
-                          : null,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child:
-                    widget.tasks.isEmpty
-                        ? _buildEmptyDropZone()
-                        : _buildTaskList(),
-              ),
+    return Consumer<ResponsiveProvider>(
+      builder: (context, responsive, child) {
+        return DragTarget<Task>(
+          onAccept: (task) {
+            if (task.status != widget.status) {
+              widget.onTaskDropped(task, widget.status);
+            }
+            setState(() => _isDragOver = false);
+            _animationController.stop();
+          },
+          onWillAccept: (task) {
+            setState(() => _isDragOver = true);
+            _animationController.repeat(reverse: true);
+            return task != null && task.status != widget.status;
+          },
+          onLeave: (task) {
+            setState(() => _isDragOver = false);
+            _animationController.stop();
+          },
+          builder: (context, candidateData, rejectedData) {
+            return AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _isDragOver ? _pulseAnimation.value : 1.0,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color:
+                          _isDragOver
+                              ? AppTheme.getStatusColor(
+                                widget.status.value,
+                              ).withOpacity(0.1)
+                              : Colors.transparent,
+                      border:
+                          _isDragOver
+                              ? Border.all(
+                                color: AppTheme.getStatusColor(
+                                  widget.status.value,
+                                ),
+                                width: 2,
+                              )
+                              : null,
+                      borderRadius: BorderRadius.circular(
+                        responsive.borderRadius,
+                      ),
+                    ),
+                    child:
+                        widget.tasks.isEmpty
+                            ? _buildEmptyDropZone(responsive)
+                            : _buildTaskList(responsive),
+                  ),
+                );
+              },
             );
           },
         );
@@ -405,12 +437,12 @@ class _ResponsiveTaskDropZoneState extends State<ResponsiveTaskDropZone>
     );
   }
 
-  Widget _buildEmptyDropZone() {
+  Widget _buildEmptyDropZone(ResponsiveProvider responsive) {
     return Container(
       height: 200,
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border, style: BorderStyle.none),
-        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(responsive.borderRadius),
       ),
       child: Center(
         child: Column(
@@ -418,19 +450,20 @@ class _ResponsiveTaskDropZoneState extends State<ResponsiveTaskDropZone>
           children: [
             Icon(
               _getStatusIcon(),
-              size: 48,
+              size: responsive.getResponsiveFontSize(48),
               color: AppTheme.getStatusColor(
                 widget.status.value,
               ).withOpacity(0.3),
             ),
-            const SizedBox(height: 16),
+            SizedBox(
+              height: responsive.responsiveValue(mobile: 12.0, desktop: 16.0),
+            ),
             Text(
               _isDragOver
                   ? 'Görevi buraya bırakın'
                   : 'Henüz ${widget.status.displayName.toLowerCase()} görev yok',
-              style: AppTheme.getResponsiveTextStyle(
-                context,
-                baseFontSize: 14,
+              style: TextStyle(
+                fontSize: responsive.getResponsiveFontSize(14),
                 color:
                     _isDragOver
                         ? AppTheme.getStatusColor(widget.status.value)
@@ -445,7 +478,7 @@ class _ResponsiveTaskDropZoneState extends State<ResponsiveTaskDropZone>
     );
   }
 
-  Widget _buildTaskList() {
+  Widget _buildTaskList(ResponsiveProvider responsive) {
     return ListView.builder(
       shrinkWrap: true,
       itemCount: widget.tasks.length,

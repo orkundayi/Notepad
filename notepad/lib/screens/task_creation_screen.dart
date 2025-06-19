@@ -6,6 +6,8 @@ import '../models/person.dart';
 import '../providers/task_provider.dart';
 import '../providers/person_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/responsive_provider.dart';
+import '../utils/theme.dart';
 
 class TaskCreationScreen extends StatefulWidget {
   final Task? task;
@@ -63,45 +65,68 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return _buildWebLayout();
-  }
-
-  Widget _buildWebLayout() {
-    return Scaffold(
-      body: Row(
-        children: [
-          // Sidebar
-          Container(
-            width: 280,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(right: BorderSide(color: Colors.grey, width: 0.5)),
-            ),
-            child: _buildSidebar(),
-          ),
-          // Main content
-          Expanded(
-            child: Container(
-              color: Colors.grey.shade50,
-              child: Column(
-                children: [
-                  _buildWebHeader(),
-                  Expanded(child: _buildWebContent()),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    return Consumer<ResponsiveProvider>(
+      builder: (context, responsive, child) {
+        if (responsive.isMobile) {
+          return _buildMobileLayout();
+        } else {
+          return _buildWebLayout();
+        }
+      },
     );
   }
 
-  Widget _buildSidebar() {
+  Widget _buildWebLayout() {
+    return Consumer<ResponsiveProvider>(
+      builder: (context, responsive, child) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: Row(
+            children: [
+              // Sidebar - sadece desktop'ta görünür
+              if (responsive.isDesktop) ...[
+                Container(
+                  width: responsive.responsiveValue(
+                    mobile: 280.0,
+                    tablet: 280.0,
+                    desktop: 320.0,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      right: BorderSide(color: AppColors.divider, width: 1),
+                    ),
+                  ),
+                  child: _buildSidebar(responsive),
+                ),
+              ],
+              // Main content
+              Expanded(
+                child: Container(
+                  color: AppColors.background,
+                  child: Column(
+                    children: [
+                      _buildWebHeader(responsive),
+                      Expanded(child: _buildWebContent(responsive)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSidebar(ResponsiveProvider responsive) {
     return Column(
       children: [
         // Sidebar Header
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(
+            responsive.responsiveValue(mobile: 16.0, desktop: 24.0),
+          ),
           child: Row(
             children: [
               IconButton(
@@ -112,29 +137,34 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
                     context.go('/dashboard');
                   }
                 },
-                icon: const Icon(Icons.arrow_back, color: Colors.blue),
+                icon: const Icon(Icons.arrow_back, color: AppColors.primary),
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.blue.withOpacity(0.1),
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(
+                width: responsive.responsiveValue(mobile: 8.0, desktop: 12.0),
+              ),
               Expanded(
                 child: Text(
                   widget.task != null ? 'Görev Düzenle' : 'Yeni Görev',
-                  style: const TextStyle(
-                    fontSize: 18,
+                  style: TextStyle(
+                    fontSize: responsive.getResponsiveFontSize(18),
                     fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const Divider(height: 1),
+        Divider(height: 1, color: AppColors.divider),
         // Sidebar Content
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(
+              responsive.responsiveValue(mobile: 12.0, desktop: 16.0),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -142,11 +172,16 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
                   'Görev Yönetimi',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    fontSize: responsive.getResponsiveFontSize(14),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(
+                  height: responsive.responsiveValue(
+                    mobile: 12.0,
+                    desktop: 16.0,
+                  ),
+                ),
                 _buildSidebarAction(
                   icon: Icons.save,
                   title:
@@ -155,8 +190,14 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
                   onTap: _saveTask,
                   isLoading: _isLoading,
                   isPrimary: true,
+                  responsive: responsive,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(
+                  height: responsive.responsiveValue(
+                    mobile: 8.0,
+                    desktop: 12.0,
+                  ),
+                ),
                 _buildSidebarAction(
                   icon: Icons.preview,
                   title: 'Önizleme',
@@ -164,13 +205,20 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
                   onTap: () {
                     // Önizleme functionality
                   },
+                  responsive: responsive,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(
+                  height: responsive.responsiveValue(
+                    mobile: 8.0,
+                    desktop: 12.0,
+                  ),
+                ),
                 _buildSidebarAction(
                   icon: Icons.refresh,
                   title: 'Sıfırla',
                   subtitle: 'Formu temizle',
                   onTap: _resetForm,
+                  responsive: responsive,
                 ),
               ],
             ),
@@ -187,18 +235,24 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
     required VoidCallback onTap,
     bool isLoading = false,
     bool isPrimary = false,
+    required ResponsiveProvider responsive,
   }) {
     return InkWell(
       onTap: isLoading ? null : onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(responsive.borderRadius),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(
+          responsive.responsiveValue(mobile: 12.0, desktop: 16.0),
+        ),
         decoration: BoxDecoration(
           border: Border.all(
-            color: isPrimary ? Colors.blue.shade200 : Colors.grey.shade300,
+            color:
+                isPrimary
+                    ? AppColors.primary.withOpacity(0.3)
+                    : AppColors.border,
           ),
-          borderRadius: BorderRadius.circular(12),
-          color: isPrimary ? Colors.blue.shade50 : null,
+          borderRadius: BorderRadius.circular(responsive.borderRadius),
+          color: isPrimary ? AppColors.primary.withOpacity(0.05) : null,
         ),
         child: Row(
           children: [
@@ -207,24 +261,29 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
               decoration: BoxDecoration(
                 color:
                     isPrimary
-                        ? Colors.blue.withOpacity(0.2)
-                        : Colors.grey.withOpacity(0.1),
+                        ? AppColors.primary.withOpacity(0.15)
+                        : AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(8),
               ),
               child:
                   isLoading
-                      ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ? SizedBox(
+                        width: responsive.getResponsiveFontSize(16),
+                        height: responsive.getResponsiveFontSize(16),
+                        child: const CircularProgressIndicator(strokeWidth: 2),
                       )
                       : Icon(
                         icon,
-                        color: isPrimary ? Colors.blue : Colors.grey.shade600,
-                        size: 20,
+                        color:
+                            isPrimary
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                        size: responsive.getResponsiveFontSize(16),
                       ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(
+              width: responsive.responsiveValue(mobile: 8.0, desktop: 12.0),
+            ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,14 +292,18 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
                     title,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: isPrimary ? Colors.blue.shade700 : Colors.black87,
+                      fontSize: responsive.getResponsiveFontSize(14),
+                      color:
+                          isPrimary ? AppColors.primary : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: responsive.getResponsiveFontSize(12),
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -251,59 +314,150 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
     );
   }
 
-  Widget _buildWebHeader() {
+  Widget _buildWebHeader(ResponsiveProvider responsive) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(
+        responsive.responsiveValue(mobile: 16.0, desktop: 24.0),
+      ),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey, width: 0.5)),
+        border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
       ),
       child: Row(
         children: [
+          // Back button for tablet mode
+          if (responsive.isTablet) ...[
+            IconButton(
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/dashboard');
+                }
+              },
+              icon: const Icon(
+                Icons.arrow_back,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            SizedBox(
+              width: responsive.responsiveValue(mobile: 8.0, desktop: 12.0),
+            ),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   widget.task != null ? 'Görev Düzenle' : 'Yeni Görev Oluştur',
-                  style: const TextStyle(
-                    fontSize: 24,
+                  style: TextStyle(
+                    fontSize: responsive.getResponsiveFontSize(24),
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(
+                  height: responsive.responsiveValue(mobile: 2.0, desktop: 4.0),
+                ),
                 Text(
                   widget.task != null
                       ? 'Görev detaylarını güncelleyin'
                       : 'Yeni bir görev oluşturmak için formu doldurun',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: responsive.getResponsiveFontSize(14),
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
+          // Save button for tablet mode
+          if (responsive.isTablet) ...[
+            SizedBox(
+              width: responsive.responsiveValue(mobile: 8.0, desktop: 12.0),
+            ),
+            ElevatedButton.icon(
+              onPressed: _isLoading ? null : _saveTask,
+              icon:
+                  _isLoading
+                      ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                      : const Icon(Icons.save, size: 16),
+              label: Text(
+                widget.task != null ? 'Güncelle' : 'Kaydet',
+                style: TextStyle(
+                  fontSize: responsive.getResponsiveFontSize(14),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: responsive.responsiveValue(
+                    mobile: 16.0,
+                    desktop: 20.0,
+                  ),
+                  vertical: responsive.responsiveValue(
+                    mobile: 8.0,
+                    desktop: 12.0,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildWebContent() {
+  Widget _buildWebContent(ResponsiveProvider responsive) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(40),
+      padding: EdgeInsets.all(
+        responsive.responsiveValue(mobile: 24.0, desktop: 40.0),
+      ),
       child: Center(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 1000),
+          constraints: BoxConstraints(
+            maxWidth: responsive.responsiveValue(
+              mobile: double.infinity,
+              tablet: 800.0,
+              desktop: 1000.0,
+            ),
+          ),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildBasicInfoSection(),
-                const SizedBox(height: 32),
-                _buildDetailsSection(),
-                const SizedBox(height: 32),
-                _buildAssignmentSection(),
-                const SizedBox(height: 60),
+                _buildBasicInfoSection(responsive),
+                SizedBox(
+                  height: responsive.responsiveValue(
+                    mobile: 24.0,
+                    desktop: 32.0,
+                  ),
+                ),
+                _buildDetailsSection(responsive),
+                SizedBox(
+                  height: responsive.responsiveValue(
+                    mobile: 24.0,
+                    desktop: 32.0,
+                  ),
+                ),
+                _buildAssignmentSection(responsive),
+                SizedBox(
+                  height: responsive.responsiveValue(
+                    mobile: 40.0,
+                    desktop: 60.0,
+                  ),
+                ),
               ],
             ),
           ),
@@ -312,10 +466,11 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
     );
   }
 
-  Widget _buildBasicInfoSection() {
+  Widget _buildBasicInfoSection(ResponsiveProvider responsive) {
     return _buildSection(
       title: 'Temel Bilgiler',
       icon: Icons.info_outline_rounded,
+      responsive: responsive,
       child: Column(
         children: [
           Row(
@@ -327,6 +482,7 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
                   label: 'Görev Numarası',
                   hint: 'örn: GMO-4567',
                   icon: Icons.tag_rounded,
+                  responsive: responsive,
                   validator: (value) {
                     if (value != null && value.trim().isNotEmpty) {
                       if (!RegExp(r'^[A-Z]+-\d+$').hasMatch(value.trim())) {
@@ -337,7 +493,9 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
                   },
                 ),
               ),
-              const SizedBox(width: 20),
+              SizedBox(
+                width: responsive.responsiveValue(mobile: 16.0, desktop: 20.0),
+              ),
               Expanded(
                 flex: 2,
                 child: _buildTextField(
@@ -345,6 +503,7 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
                   label: 'Görev Başlığı *',
                   hint: 'Açıklayıcı bir başlık girin',
                   icon: Icons.title_rounded,
+                  responsive: responsive,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Lütfen bir görev başlığı girin';
@@ -355,38 +514,45 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(
+            height: responsive.responsiveValue(mobile: 16.0, desktop: 20.0),
+          ),
           _buildTextField(
             controller: _descriptionController,
             label: 'Açıklama',
             hint: 'Yapılması gerekenleri açıklayın...',
             icon: Icons.description_rounded,
             maxLines: 4,
+            responsive: responsive,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailsSection() {
+  Widget _buildDetailsSection(ResponsiveProvider responsive) {
     return _buildSection(
       title: 'Görev Detayları',
       icon: Icons.settings_rounded,
+      responsive: responsive,
       child: Row(
         children: [
-          Expanded(child: _buildPriorityField()),
-          const SizedBox(width: 20),
-          Expanded(child: _buildStatusField()),
+          Expanded(child: _buildPriorityField(responsive)),
+          SizedBox(
+            width: responsive.responsiveValue(mobile: 16.0, desktop: 20.0),
+          ),
+          Expanded(child: _buildStatusField(responsive)),
         ],
       ),
     );
   }
 
-  Widget _buildAssignmentSection() {
+  Widget _buildAssignmentSection(ResponsiveProvider responsive) {
     return _buildSection(
       title: 'Atama',
       icon: Icons.person_rounded,
-      child: _buildAssigneeField(),
+      responsive: responsive,
+      child: _buildAssigneeField(responsive),
     );
   }
 
@@ -394,13 +560,16 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
     required String title,
     required IconData icon,
     required Widget child,
+    required ResponsiveProvider responsive,
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(
+        responsive.responsiveValue(mobile: 16.0, desktop: 24.0),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(responsive.borderRadius),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -414,19 +583,27 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
         children: [
           Row(
             children: [
-              Icon(icon, color: Colors.blue, size: 20),
-              const SizedBox(width: 12),
+              Icon(
+                icon,
+                color: AppColors.primary,
+                size: responsive.getResponsiveFontSize(20),
+              ),
+              SizedBox(
+                width: responsive.responsiveValue(mobile: 8.0, desktop: 12.0),
+              ),
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 18,
+                style: TextStyle(
+                  fontSize: responsive.getResponsiveFontSize(18),
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(
+            height: responsive.responsiveValue(mobile: 16.0, desktop: 20.0),
+          ),
           child,
         ],
       ),
@@ -438,6 +615,7 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
     required String label,
     required String hint,
     required IconData icon,
+    required ResponsiveProvider responsive,
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
@@ -446,67 +624,80 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
             fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: responsive.responsiveValue(mobile: 6.0, desktop: 8.0)),
         TextFormField(
           controller: controller,
           maxLines: maxLines,
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-            prefixIcon: Icon(icon, color: Colors.grey.shade600, size: 20),
+            hintStyle: TextStyle(
+              color: AppColors.textHint,
+              fontSize: responsive.getResponsiveFontSize(14),
+            ),
+            prefixIcon: Icon(
+              icon,
+              color: AppColors.textSecondary,
+              size: responsive.getResponsiveFontSize(20),
+            ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.blue, width: 2),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.red),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: const BorderSide(color: AppColors.error),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.red, width: 2),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: const BorderSide(color: AppColors.error, width: 2),
             ),
             filled: true,
-            fillColor: Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
+            fillColor: AppColors.surfaceVariant,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: responsive.responsiveValue(
+                mobile: 12.0,
+                desktop: 16.0,
+              ),
+              vertical: responsive.responsiveValue(mobile: 12.0, desktop: 14.0),
             ),
           ),
-          style: const TextStyle(fontSize: 14),
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
+            color: AppColors.textPrimary,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildPriorityField() {
+  Widget _buildPriorityField(ResponsiveProvider responsive) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Öncelik',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: responsive.getResponsiveFontSize(14),
             fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: responsive.responsiveValue(mobile: 6.0, desktop: 8.0)),
         DropdownButtonFormField<TaskPriority>(
           value: _selectedPriority,
           onChanged: (TaskPriority? priority) {
@@ -517,29 +708,35 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
           decoration: InputDecoration(
             prefixIcon: Icon(
               Icons.priority_high_rounded,
-              color: Colors.grey.shade600,
-              size: 20,
+              color: AppColors.textSecondary,
+              size: responsive.getResponsiveFontSize(20),
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.blue, width: 2),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
             ),
             filled: true,
-            fillColor: Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
+            fillColor: AppColors.surfaceVariant,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: responsive.responsiveValue(
+                mobile: 12.0,
+                desktop: 16.0,
+              ),
+              vertical: responsive.responsiveValue(mobile: 12.0, desktop: 14.0),
             ),
           ),
-          style: const TextStyle(fontSize: 14, color: Colors.black87),
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
+            color: AppColors.textPrimary,
+          ),
           items:
               TaskPriority.values.map((TaskPriority priority) {
                 return DropdownMenuItem<TaskPriority>(
@@ -552,19 +749,19 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
     );
   }
 
-  Widget _buildStatusField() {
+  Widget _buildStatusField(ResponsiveProvider responsive) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Durum',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: responsive.getResponsiveFontSize(14),
             fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: responsive.responsiveValue(mobile: 6.0, desktop: 8.0)),
         DropdownButtonFormField<TaskStatus>(
           value: _selectedStatus,
           onChanged: (TaskStatus? status) {
@@ -575,29 +772,35 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
           decoration: InputDecoration(
             prefixIcon: Icon(
               Icons.flag_rounded,
-              color: Colors.grey.shade600,
-              size: 20,
+              color: AppColors.textSecondary,
+              size: responsive.getResponsiveFontSize(20),
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.blue, width: 2),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
             ),
             filled: true,
-            fillColor: Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
+            fillColor: AppColors.surfaceVariant,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: responsive.responsiveValue(
+                mobile: 12.0,
+                desktop: 16.0,
+              ),
+              vertical: responsive.responsiveValue(mobile: 12.0, desktop: 14.0),
             ),
           ),
-          style: const TextStyle(fontSize: 14, color: Colors.black87),
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
+            color: AppColors.textPrimary,
+          ),
           items:
               TaskStatus.values.map((TaskStatus status) {
                 return DropdownMenuItem<TaskStatus>(
@@ -610,19 +813,19 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
     );
   }
 
-  Widget _buildAssigneeField() {
+  Widget _buildAssigneeField(ResponsiveProvider responsive) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Atanan Kişi',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: responsive.getResponsiveFontSize(14),
             fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: responsive.responsiveValue(mobile: 6.0, desktop: 8.0)),
         Consumer<PersonProvider>(
           builder: (context, personProvider, child) {
             return DropdownButtonFormField<Person?>(
@@ -633,29 +836,38 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
               decoration: InputDecoration(
                 prefixIcon: Icon(
                   Icons.person_rounded,
-                  color: Colors.grey.shade600,
-                  size: 20,
+                  color: AppColors.textSecondary,
+                  size: responsive.getResponsiveFontSize(20),
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(responsive.borderRadius),
+                  borderSide: BorderSide(color: AppColors.border),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(responsive.borderRadius),
+                  borderSide: BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.blue, width: 2),
+                  borderRadius: BorderRadius.circular(responsive.borderRadius),
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
                 ),
                 filled: true,
-                fillColor: Colors.grey.shade50,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+                fillColor: AppColors.surfaceVariant,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: responsive.responsiveValue(
+                    mobile: 12.0,
+                    desktop: 16.0,
+                  ),
+                  vertical: responsive.responsiveValue(
+                    mobile: 12.0,
+                    desktop: 14.0,
+                  ),
                 ),
               ),
-              style: const TextStyle(fontSize: 14, color: Colors.black87),
+              style: TextStyle(
+                fontSize: responsive.getResponsiveFontSize(14),
+                color: AppColors.textPrimary,
+              ),
               items: [
                 const DropdownMenuItem<Person?>(
                   value: null,
@@ -773,5 +985,572 @@ class _TaskCreationScreenState extends State<TaskCreationScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Widget _buildMobileLayout() {
+    return Consumer<ResponsiveProvider>(
+      builder: (context, responsive, child) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: _buildMobileAppBar(responsive),
+          body: _buildMobileContent(responsive),
+          floatingActionButton: _buildMobileFAB(responsive),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerFloat,
+        );
+      },
+    );
+  }
+
+  PreferredSizeWidget _buildMobileAppBar(ResponsiveProvider responsive) {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 1,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/dashboard');
+          }
+        },
+      ),
+      title: Text(
+        widget.task != null ? 'Görev Düzenle' : 'Yeni Görev',
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: responsive.getResponsiveFontSize(18),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      actions: [
+        if (!_isLoading)
+          IconButton(
+            onPressed: _saveTask,
+            icon: const Icon(Icons.check, color: AppColors.primary),
+            tooltip: widget.task != null ? 'Güncelle' : 'Kaydet',
+          ),
+        if (_isLoading)
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMobileContent(ResponsiveProvider responsive) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: EdgeInsets.all(
+          responsive.responsiveValue(mobile: 16.0, desktop: 24.0),
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildMobileBasicInfoSection(responsive),
+              SizedBox(
+                height: responsive.responsiveValue(mobile: 20.0, desktop: 24.0),
+              ),
+              _buildMobileDetailsSection(responsive),
+              SizedBox(
+                height: responsive.responsiveValue(mobile: 20.0, desktop: 24.0),
+              ),
+              _buildMobileAssignmentSection(responsive),
+              SizedBox(
+                height: responsive.responsiveValue(mobile: 80.0, desktop: 60.0),
+              ), // Space for FAB
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileFAB(ResponsiveProvider responsive) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: FloatingActionButton.extended(
+        onPressed: _isLoading ? null : _saveTask,
+        backgroundColor: _isLoading ? AppColors.textHint : AppColors.primary,
+        icon:
+            _isLoading
+                ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+                : const Icon(Icons.save, color: Colors.white),
+        label: Text(
+          widget.task != null ? 'Güncelle' : 'Kaydet',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: responsive.getResponsiveFontSize(16),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileBasicInfoSection(ResponsiveProvider responsive) {
+    return _buildMobileSection(
+      title: 'Temel Bilgiler',
+      icon: Icons.info_outline,
+      responsive: responsive,
+      child: Column(
+        children: [
+          _buildMobileTextField(
+            controller: _taskNumberController,
+            label: 'Görev Numarası',
+            hint: 'örn: GMO-4567',
+            icon: Icons.tag,
+            responsive: responsive,
+            validator: (value) {
+              if (value != null && value.trim().isNotEmpty) {
+                if (!RegExp(r'^[A-Z]+-\d+$').hasMatch(value.trim())) {
+                  return 'Format: ABC-123';
+                }
+              }
+              return null;
+            },
+          ),
+          SizedBox(
+            height: responsive.responsiveValue(mobile: 16.0, desktop: 20.0),
+          ),
+          _buildMobileTextField(
+            controller: _titleController,
+            label: 'Görev Başlığı *',
+            hint: 'Açıklayıcı bir başlık girin',
+            icon: Icons.title,
+            responsive: responsive,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Lütfen bir görev başlığı girin';
+              }
+              return null;
+            },
+          ),
+          SizedBox(
+            height: responsive.responsiveValue(mobile: 16.0, desktop: 20.0),
+          ),
+          _buildMobileTextField(
+            controller: _descriptionController,
+            label: 'Açıklama',
+            hint: 'Yapılması gerekenleri açıklayın...',
+            icon: Icons.description,
+            maxLines: 4,
+            responsive: responsive,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDetailsSection(ResponsiveProvider responsive) {
+    return _buildMobileSection(
+      title: 'Görev Detayları',
+      icon: Icons.settings,
+      responsive: responsive,
+      child: Column(
+        children: [
+          _buildMobilePriorityField(responsive),
+          SizedBox(
+            height: responsive.responsiveValue(mobile: 16.0, desktop: 20.0),
+          ),
+          _buildMobileStatusField(responsive),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileAssignmentSection(ResponsiveProvider responsive) {
+    return _buildMobileSection(
+      title: 'Atama',
+      icon: Icons.person,
+      responsive: responsive,
+      child: _buildMobileAssigneeField(responsive),
+    );
+  }
+
+  Widget _buildMobileSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+    required ResponsiveProvider responsive,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(
+        responsive.responsiveValue(mobile: 16.0, desktop: 20.0),
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(responsive.borderRadius),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: AppColors.primary,
+                  size: responsive.getResponsiveFontSize(18),
+                ),
+              ),
+              SizedBox(
+                width: responsive.responsiveValue(mobile: 12.0, desktop: 16.0),
+              ),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: responsive.getResponsiveFontSize(16),
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(
+            height: responsive.responsiveValue(mobile: 16.0, desktop: 20.0),
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    required ResponsiveProvider responsive,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(
+          height: responsive.responsiveValue(mobile: 8.0, desktop: 10.0),
+        ),
+        TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          validator: validator,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(
+              color: AppColors.textHint,
+              fontSize: responsive.getResponsiveFontSize(14),
+            ),
+            prefixIcon: Icon(
+              icon,
+              color: AppColors.textSecondary,
+              size: responsive.getResponsiveFontSize(20),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: const BorderSide(color: AppColors.error),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: const BorderSide(color: AppColors.error, width: 2),
+            ),
+            filled: true,
+            fillColor: AppColors.surfaceVariant,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: responsive.responsiveValue(
+                mobile: 12.0,
+                desktop: 16.0,
+              ),
+              vertical: responsive.responsiveValue(mobile: 12.0, desktop: 14.0),
+            ),
+          ),
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobilePriorityField(ResponsiveProvider responsive) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Öncelik',
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(
+          height: responsive.responsiveValue(mobile: 8.0, desktop: 10.0),
+        ),
+        DropdownButtonFormField<TaskPriority>(
+          value: _selectedPriority,
+          onChanged: (TaskPriority? priority) {
+            if (priority != null) {
+              setState(() => _selectedPriority = priority);
+            }
+          },
+          decoration: InputDecoration(
+            prefixIcon: Icon(
+              Icons.priority_high,
+              color: AppColors.textSecondary,
+              size: responsive.getResponsiveFontSize(20),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
+            filled: true,
+            fillColor: AppColors.surfaceVariant,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: responsive.responsiveValue(
+                mobile: 12.0,
+                desktop: 16.0,
+              ),
+              vertical: responsive.responsiveValue(mobile: 12.0, desktop: 14.0),
+            ),
+          ),
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
+            color: AppColors.textPrimary,
+          ),
+          items:
+              TaskPriority.values.map((TaskPriority priority) {
+                return DropdownMenuItem<TaskPriority>(
+                  value: priority,
+                  child: Text(priority.displayName),
+                );
+              }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileStatusField(ResponsiveProvider responsive) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Durum',
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(
+          height: responsive.responsiveValue(mobile: 8.0, desktop: 10.0),
+        ),
+        DropdownButtonFormField<TaskStatus>(
+          value: _selectedStatus,
+          onChanged: (TaskStatus? status) {
+            if (status != null) {
+              setState(() => _selectedStatus = status);
+            }
+          },
+          decoration: InputDecoration(
+            prefixIcon: Icon(
+              Icons.flag,
+              color: AppColors.textSecondary,
+              size: responsive.getResponsiveFontSize(20),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
+            filled: true,
+            fillColor: AppColors.surfaceVariant,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: responsive.responsiveValue(
+                mobile: 12.0,
+                desktop: 16.0,
+              ),
+              vertical: responsive.responsiveValue(mobile: 12.0, desktop: 14.0),
+            ),
+          ),
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
+            color: AppColors.textPrimary,
+          ),
+          items:
+              TaskStatus.values.map((TaskStatus status) {
+                return DropdownMenuItem<TaskStatus>(
+                  value: status,
+                  child: Text(status.displayName),
+                );
+              }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileAssigneeField(ResponsiveProvider responsive) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Atanan Kişi',
+          style: TextStyle(
+            fontSize: responsive.getResponsiveFontSize(14),
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(
+          height: responsive.responsiveValue(mobile: 8.0, desktop: 10.0),
+        ),
+        Consumer<PersonProvider>(
+          builder: (context, personProvider, child) {
+            return DropdownButtonFormField<Person?>(
+              value: _selectedAssignee,
+              onChanged: (Person? person) {
+                setState(() => _selectedAssignee = person);
+              },
+              decoration: InputDecoration(
+                prefixIcon: Icon(
+                  Icons.person,
+                  color: AppColors.textSecondary,
+                  size: responsive.getResponsiveFontSize(20),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(responsive.borderRadius),
+                  borderSide: BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(responsive.borderRadius),
+                  borderSide: BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(responsive.borderRadius),
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: AppColors.surfaceVariant,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: responsive.responsiveValue(
+                    mobile: 12.0,
+                    desktop: 16.0,
+                  ),
+                  vertical: responsive.responsiveValue(
+                    mobile: 12.0,
+                    desktop: 14.0,
+                  ),
+                ),
+              ),
+              style: TextStyle(
+                fontSize: responsive.getResponsiveFontSize(14),
+                color: AppColors.textPrimary,
+              ),
+              items: [
+                const DropdownMenuItem<Person?>(
+                  value: null,
+                  child: Text('Atanmamış'),
+                ),
+                ...personProvider.people.map((Person person) {
+                  return DropdownMenuItem<Person?>(
+                    value: person,
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: AppColors.primary,
+                          child: Text(
+                            person.name.isNotEmpty
+                                ? person.name[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(person.name),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            );
+          },
+        ),
+      ],
+    );
   }
 }

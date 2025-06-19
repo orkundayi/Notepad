@@ -3,7 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
-import '../utils/platform_utils.dart';
+import '../providers/responsive_provider.dart';
 import '../utils/theme.dart';
 import '../widgets/responsive_task_card.dart';
 
@@ -45,34 +45,56 @@ class _ResponsiveWebKanbanLayoutState extends State<ResponsiveWebKanbanLayout> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TaskProvider>(
-      builder: (context, taskProvider, child) {
+    return Consumer2<TaskProvider, ResponsiveProvider>(
+      builder: (context, taskProvider, responsive, child) {
         final allTasks =
             widget.isFiltered ? widget.filteredTasks : taskProvider.tasks;
 
-        // Always use desktop layout for web
-        return _buildDesktopLayout(allTasks, taskProvider);
+        // Mobile layout için kontrol
+        if (responsive.isMobile) {
+          return _buildMobileLayout(allTasks, taskProvider, responsive);
+        }
+
+        // Desktop layout for web and tablets
+        return _buildDesktopLayout(allTasks, taskProvider, responsive);
       },
     );
   }
 
-  Widget _buildDesktopLayout(List<Task> allTasks, TaskProvider taskProvider) {
-    return _buildMultiColumnLayout(allTasks, taskProvider, 4);
+  Widget _buildDesktopLayout(
+    List<Task> allTasks,
+    TaskProvider taskProvider,
+    ResponsiveProvider responsive,
+  ) {
+    return _buildMultiColumnLayout(allTasks, taskProvider, 4, responsive);
   }
 
   Widget _buildMultiColumnLayout(
     List<Task> allTasks,
     TaskProvider taskProvider,
     int columns,
+    ResponsiveProvider responsive,
   ) {
     final allStatuses = TaskStatus.values;
     final screenWidth = MediaQuery.of(context).size.width;
-    final padding = PlatformUtils.getPagePadding(context);
+    final padding = responsive.responsivePadding(
+      mobile: const EdgeInsets.all(16),
+      tablet: const EdgeInsets.all(24),
+      desktop: const EdgeInsets.all(32),
+    );
     final availableWidth = screenWidth - padding.horizontal;
 
     // Calculate minimum column width and spacing
-    const minColumnWidth = 280.0;
-    const columnSpacing = 16.0;
+    final minColumnWidth = responsive.responsiveValue(
+      mobile: 280.0,
+      tablet: 300.0,
+      desktop: 320.0,
+    );
+    final columnSpacing = responsive.responsiveValue(
+      mobile: 12.0,
+      tablet: 16.0,
+      desktop: 20.0,
+    );
     final totalSpacing = columnSpacing * (allStatuses.length - 1);
     final requiredWidth = (minColumnWidth * allStatuses.length) + totalSpacing;
 
@@ -259,6 +281,197 @@ class _ResponsiveWebKanbanLayoutState extends State<ResponsiveWebKanbanLayout> {
       ),
     );
   }
+
+  Widget _buildMobileLayout(
+    List<Task> allTasks,
+    TaskProvider taskProvider,
+    ResponsiveProvider responsive,
+  ) {
+    final allStatuses = TaskStatus.values;
+
+    return DefaultTabController(
+      length: allStatuses.length,
+      child: Column(
+        children: [
+          // Tab bar for mobile
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              isScrollable: true,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: AppColors.textSecondary,
+              indicatorColor: AppColors.primary,
+              tabs:
+                  allStatuses.map((status) {
+                    final count =
+                        allTasks.where((task) => task.status == status).length;
+                    return Tab(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(status.displayName),
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              count.toString(),
+                              style: TextStyle(
+                                fontSize: responsive.getResponsiveFontSize(12),
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+            ),
+          ),
+          // Tab view content
+          Expanded(
+            child: TabBarView(
+              children:
+                  allStatuses.map((status) {
+                    final statusTasks =
+                        allTasks
+                            .where((task) => task.status == status)
+                            .toList();
+                    return _buildMobileColumn(
+                      status,
+                      statusTasks,
+                      taskProvider,
+                      responsive,
+                    );
+                  }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileColumn(
+    TaskStatus status,
+    List<Task> tasks,
+    TaskProvider taskProvider,
+    ResponsiveProvider responsive,
+  ) {
+    return Container(
+      padding: responsive.responsivePadding(
+        mobile: const EdgeInsets.all(16),
+        desktop: const EdgeInsets.all(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Column header
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: status.color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(responsive.borderRadius),
+              border: Border.all(color: status.color.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  status.icon,
+                  color: status.color,
+                  size: responsive.getResponsiveFontSize(20),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  status.displayName,
+                  style: TextStyle(
+                    fontSize: responsive.getResponsiveFontSize(16),
+                    fontWeight: FontWeight.w600,
+                    color: status.color,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: status.color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${tasks.length}',
+                    style: TextStyle(
+                      fontSize: responsive.getResponsiveFontSize(12),
+                      fontWeight: FontWeight.w600,
+                      color: status.color,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Tasks list
+          Expanded(
+            child:
+                tasks.isEmpty
+                    ? _buildEmptyState(status, responsive)
+                    : ListView.builder(
+                      itemCount: tasks.length,
+                      itemBuilder: (context, index) {
+                        final task = tasks[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: ResponsiveTaskCard(
+                            task: task,
+                            onEdit: () => widget.onEditTask(task),
+                            onDelete: () => widget.onDeleteTask(task),
+                            onStatusChanged: (newStatus) {
+                              taskProvider.updateTaskStatus(task.id, newStatus);
+                            },
+                          ),
+                        );
+                      },
+                    ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(TaskStatus status, ResponsiveProvider responsive) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            status.icon,
+            size: responsive.getResponsiveFontSize(48),
+            color: AppColors.textHint,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Henüz ${status.displayName.toLowerCase()} görev yok',
+            style: TextStyle(
+              fontSize: responsive.getResponsiveFontSize(16),
+              color: AppColors.textHint,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class ResponsiveWebSidePanel extends StatelessWidget {
@@ -277,7 +490,12 @@ class ResponsiveWebSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sidebarWidth = PlatformUtils.getSidebarWidth(context);
+    final responsive = Provider.of<ResponsiveProvider>(context, listen: false);
+    final sidebarWidth = responsive.responsiveValue(
+      mobile: 0.0,
+      tablet: 280.0,
+      desktop: 320.0,
+    );
 
     return Container(
       width: sidebarWidth,
